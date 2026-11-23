@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartQ - Staff Dashboard</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+</head>
+<body class="dashboard-body">
+
+    <!-- Top Navigation Bar -->
+    <header class="top-nav">
+        <div class="nav-brand">
+            <div class="brand-logo">
+                <span class="logo-icon">⚡</span>
+                <span class="brand-title">SmartQ</span>
+            </div>
+            <span class="badge badge-counter" id="counterBadge">{{ counter_name }}</span>
+            <span class="badge badge-online">● Server Live</span>
+        </div>
+        <div class="nav-actions">
+            <span class="lan-ip-display" title="Kiosk & mobile devices must connect to this IP">
+                LAN IP: <strong id="lanIpDisplay">{{ lan_ip }}:{{ port }}</strong>
+            </span>
+            <a href="/kiosk" target="_blank" class="btn btn-outline-sm" title="Test ESP32 buttons & LCD in browser">🖥️ Virtual Kiosk</a>
+            <button class="btn btn-outline-sm" id="btnSupabaseCloud" style="border-color:#3ECF8E; color:#3ECF8E; display:inline-flex; align-items:center; gap:5px;"><span>☁️</span> <span>Supabase Cloud</span></button>
+            <a href="/whatsapp" target="_blank" class="btn btn-outline-sm" style="border-color:#25D366; color:#25D366; text-decoration:none; display:inline-flex; align-items:center; gap:5px;"><span>💬</span> <span>Free WhatsApp Hub ↗</span></a>
+            <button class="btn btn-outline-sm" id="btnShowEntranceQr" style="border-color:#38bdf8; color:#38bdf8;">📱 Entrance QR Login</button>
+            <button class="btn btn-outline-sm" id="btnShowQr">🎫 Token QR</button>
+            <button class="btn btn-outline-sm" id="btnTestVoice">🔊 Test Voice</button>
+            <button class="btn btn-outline-sm" id="btnSeedDemoData" style="border-color:#10b981; color:#34d399; font-weight:700;" title="Seed 28 realistic clinic patient tokens into queue & Supabase">🌱 Populate 28 Patients</button>
+            <button class="btn btn-danger-sm" id="btnResetQueue" title="Reset queue for clean presentation">↺ Reset</button>
+        </div>
+    </header>
+
+    <!-- Help Alert Banner (Active when ESP32 HELP button is pressed) -->
+    <div id="helpAlertBanner" class="help-alert-banner" style="display: none;">
+        <div class="help-content">
+            <span class="help-icon">🚨</span>
+            <div class="help-text">
+                <strong>Assistance Alert from Kiosk!</strong>
+                <span id="helpTime">Just now</span> — A customer pressed the HELP button at the counter kiosk.
+            </div>
+        </div>
+        <button class="btn btn-acknowledge" id="btnAckHelp">Acknowledge & Clear</button>
+    </div>
+
+    <main class="dashboard-container">
+        
+        <!-- Queue Statistics Row -->
+        <section class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Waiting in Queue</div>
+                <div class="stat-value text-primary" id="statWaiting">0</div>
+                <div class="stat-sub">Customers in line</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Currently Serving</div>
+                <div class="stat-value text-accent" id="statServing">-</div>
+                <div class="stat-sub" id="statServingSub">Counter Ready</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Completed Today</div>
+                <div class="stat-value text-success" id="statCompleted">0</div>
+                <div class="stat-sub">Served successfully</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Skipped / Absent</div>
+                <div class="stat-value text-warning" id="statSkipped">0</div>
+                <div class="stat-sub">Missed calls</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Total Generated</div>
+                <div class="stat-value" id="statTotal">0</div>
+                <div class="stat-sub">Today's tokens</div>
+            </div>
+        </section>
+
+        <!-- Main Workspace (2 columns) -->
+        <div class="workspace-grid">
+
+            <!-- LEFT COLUMN: Now Serving & Controls -->
+            <div class="col-main">
+
+                <!-- Now Serving Hero Card -->
+                <div class="card card-serving">
+                    <div class="card-header">
+                        <h2>Now Serving</h2>
+                        <span class="status-indicator live" id="servingStatusBadge">READY</span>
+                    </div>
+                    <div class="card-body serving-body">
+                        <div class="token-display-wrap">
+                            <div class="token-number-hero" id="heroTokenNo">---</div>
+                            <div class="token-meta-row">
+                                <span class="badge" id="heroCustomerName">No Active Token</span>
+                                <span class="badge badge-lang" id="heroLanguage">EN</span>
+                                <span class="badge badge-priority" id="heroPriority" style="display: none;">★ PRIORITY</span>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="controls-grid">
+                            <button class="btn btn-call-next" id="btnCallNext">
+                                <span class="btn-icon">📢</span>
+                                <span class="btn-title">Call Next</span>
+                                <span class="btn-sub">Fetch next eligible token</span>
+                            </button>
+                            <button class="btn btn-repeat" id="btnRepeatCall" disabled>
+                                <span class="btn-icon">🔁</span>
+                                <span class="btn-title">Repeat</span>
+                                <span class="btn-sub">Re-announce token</span>
+                            </button>
+                            <button class="btn btn-complete" id="btnCompleteService" disabled>
+                                <span class="btn-icon">✓</span>
+                                <span class="btn-title">Complete</span>
+                                <span class="btn-sub">Mark served</span>
+                            </button>
+                            <button class="btn btn-skip" id="btnSkipService" disabled>
+                                <span class="btn-icon">✕</span>
+                                <span class="btn-title">Skip</span>
+                                <span class="btn-sub">Customer absent</span>
+                            </button>
+                        </div>
+
+                        <!-- WhatsApp Turn Alert Row -->
+                        <div style="margin-top: 1rem; display: flex; justify-content: center; gap: 0.75rem;">
+                            <a id="btnWhatsAppAlert" href="#" target="_blank" class="btn btn-sm" style="display:none; background:#25D366; color:#ffffff; font-weight:700; border-radius:8px; padding:0.5rem 1rem; text-decoration:none;">
+                                💬 <span>Send WhatsApp Alert to Patient</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Priority Policy & Voice Control Card -->
+                <div class="card card-settings">
+                    <div class="card-header">
+                        <h3>Queue Policy & Voice Controls</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="settings-row">
+                            <div class="setting-item">
+                                <label for="selectPriorityPolicy">Queue Ordering Rule:</label>
+                                <select id="selectPriorityPolicy" class="form-select">
+                                    <option value="priority_first">Priority First (Senior / Disability / Emergency first)</option>
+                                    <option value="fifo">Standard FIFO (Strict Arrival Order)</option>
+                                </select>
+                            </div>
+                            <div class="setting-item">
+                                <label for="selectVoiceLang">Voice Announcement:</label>
+                                <div class="voice-preview-row">
+                                    <button class="btn btn-sm btn-outline" id="btnSpeakEn">Speak EN ("Token A001...")</button>
+                                    <button class="btn btn-sm btn-outline" id="btnSpeakTe">Speak TE (తెలుగు)</button>
+                                    <button class="btn btn-sm btn-outline" id="btnSpeakTa" style="border-color:#38bdf8; color:#38bdf8;">Speak TA (தமிழ்)</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="voice-info-note" id="voiceStatusNote">
+                            Checking Web Speech synthesis voices...
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Staff Assisted Token Creation Card -->
+                <div class="card card-assisted">
+                    <div class="card-header">
+                        <h3>Staff-Assisted Token Generation</h3>
+                        <span class="sub-header-note">For walk-in customers needing assistance</span>
+                    </div>
+                    <div class="card-body">
+                        <form id="formStaffToken" class="assisted-form">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label>Customer Name (Optional)</label>
+                                    <input type="text" id="staffCustName" class="form-control" placeholder="e.g. Ramesh Kumar">
+                                </div>
+                                <div class="form-group">
+                                    <label>Phone Number (Optional)</label>
+                                    <input type="tel" id="staffCustPhone" class="form-control" placeholder="e.g. 9876543210">
+                                </div>
+                                <div class="form-group">
+                                    <label>Announcement Language</label>
+                                    <select id="staffCustLang" class="form-select">
+                                        <option value="en">English (Default)</option>
+                                        <option value="te">Telugu (తెలుగు)</option>
+                                        <option value="ta">Tamil (தமிழ்)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group checkbox-group">
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="staffIsPriority">
+                                        <span class="checkbox-custom"></span>
+                                        <strong>Grant Priority Access</strong>
+                                    </label>
+                                    <input type="text" id="staffPriorityReason" class="form-control" placeholder="Reason: Senior citizen, differently abled..." style="display:none; margin-top: 6px;">
+                                </div>
+                            </div>
+                            <div class="form-actions">
+                                <button type="submit" class="btn btn-primary" id="btnCreateStaffToken">
+                                    + Generate & Print Token
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- RIGHT COLUMN: Waiting List & Audit Events -->
+            <div class="col-side">
+
+                <!-- Waiting List Card -->
+                <div class="card card-waiting">
+                    <div class="card-header">
+                        <div class="header-left">
+                            <h3>Waiting Queue</h3>
+                            <span class="counter-pill" id="waitingCountPill">0</span>
+                        </div>
+                        <button class="btn btn-xs btn-outline" id="btnRefreshQueue">↻ Refresh</button>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table-queue" id="waitingTable">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Token</th>
+                                        <th>Customer</th>
+                                        <th>Lang</th>
+                                        <th>Source</th>
+                                        <th>Priority</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="waitingTableBody">
+                                    <tr>
+                                        <td colspan="7" class="text-center empty-state">No customers waiting in queue.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- WhatsApp Notifications Card -->
+                <div class="card card-whatsapp">
+                    <div class="card-header">
+                        <div class="header-left">
+                            <h3>💬 WhatsApp Notifications</h3>
+                            <span class="counter-pill" style="background:#25D366;" id="waCountPill">0</span>
+                        </div>
+                        <button class="btn btn-xs btn-outline" id="btnRefreshWhatsApp">↻ Refresh</button>
+                    </div>
+                    <div class="card-body p-0">
+                        <ul class="events-list" id="whatsappOutboxList">
+                            <li class="event-item text-muted">No WhatsApp messages dispatched yet.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Event Audit Log Card -->
+                <div class="card card-events">
+                    <div class="card-header">
+                        <h3>Recent Event Log</h3>
+                        <span class="sub-header-note">Audit trail</span>
+                    </div>
+                    <div class="card-body p-0">
+                        <ul class="events-list" id="eventsList">
+                            <li class="event-item text-muted">System loaded. Waiting for activity...</li>
+                        </ul>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Modal for Digital Prescription & Complete -->
+    <div id="prescriptionModal" class="modal-backdrop" style="display: none;">
+        <div class="modal-card" style="max-width: 580px;">
+            <div class="modal-header">
+                <h3>📋 Complete Consultation & Issue Prescription</h3>
+                <button class="modal-close" id="btnCloseRxModal">✕</button>
+            </div>
+            <div class="modal-body">
+                <div style="background:#0f172a; border:1px solid #334155; border-radius:10px; padding:0.85rem; margin-bottom:1rem; display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <span style="font-size:0.8rem; color:#94a3b8; text-transform:uppercase;">Patient Token:</span>
+                        <div id="rxModalToken" style="font-family:'JetBrains Mono', monospace; font-size:1.6rem; font-weight:800; color:#38bdf8;">A001</div>
+                    </div>
+                    <div style="text-align:right;">
+                        <span style="font-size:0.8rem; color:#94a3b8;">Patient Name:</span>
+                        <div id="rxModalPatient" style="font-weight:700; font-size:1.05rem; color:#ffffff;">Ramesh Kumar</div>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom:0.85rem;">
+                    <label style="font-size:0.82rem; font-weight:700; color:#cbd5e1; display:block; margin-bottom:4px;">Clinical Diagnosis / Consultation Notes:</label>
+                    <input type="text" id="rxDiagnosisInput" class="form-control" value="General OPD Consultation & Routine Checkup" style="width:100%; box-sizing:border-box;">
+                </div>
+
+                <div class="form-group" style="margin-bottom:0.85rem;">
+                    <label style="font-size:0.82rem; font-weight:700; color:#cbd5e1; display:block; margin-bottom:4px;">Prescribed Medications:</label>
+                    <div id="rxMedicinesList" style="display:flex; flex-direction:column; gap:6px;">
+                        <div class="rx-med-item" style="display:grid; grid-template-columns: 2fr 1fr 1fr; gap:6px;">
+                            <input type="text" class="form-control rx-name" value="Paracetamol 650mg (After food)">
+                            <input type="text" class="form-control rx-dose" value="1 Tab - Thrice daily">
+                            <input type="text" class="form-control rx-dur" value="3 Days">
+                        </div>
+                        <div class="rx-med-item" style="display:grid; grid-template-columns: 2fr 1fr 1fr; gap:6px;">
+                            <input type="text" class="form-control rx-name" value="Cetirizine 10mg (At bedtime)">
+                            <input type="text" class="form-control rx-dose" value="1 Tab - Once daily">
+                            <input type="text" class="form-control rx-dur" value="5 Days">
+                        </div>
+                        <div class="rx-med-item" style="display:grid; grid-template-columns: 2fr 1fr 1fr; gap:6px;">
+                            <input type="text" class="form-control rx-name" value="Multivitamin + Zinc">
+                            <input type="text" class="form-control rx-dose" value="1 Tab - Morning">
+                            <input type="text" class="form-control rx-dur" value="10 Days">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom:1.15rem;">
+                    <label style="font-size:0.82rem; font-weight:700; color:#cbd5e1; display:block; margin-bottom:4px;">Doctor's Advice & Instructions:</label>
+                    <textarea id="rxDoctorNotesInput" class="form-control" rows="2" style="width:100%; box-sizing:border-box;">Take medicines after meals with warm water. Rest well. Review after 3 days if symptoms persist.</textarea>
+                </div>
+
+                <div style="font-size:0.8rem; color:#10b981; margin-bottom:1rem; display:flex; align-items:center; gap:6px;">
+                    <span>💬</span>
+                    <span>WhatsApp notification with digital prescription link will be dispatched automatically upon completion.</span>
+                </div>
+
+                <div class="modal-footer-btns" style="display:flex; justify-content:flex-end; gap:10px;">
+                    <button type="button" class="btn btn-outline" id="btnCancelRxModal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="btnConfirmCompleteRx" style="background:#10b981; border-color:#059669;">
+                        ✓ Complete & Send Prescription
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Entrance QR Code -->
+    <div id="entranceQrModal" class="modal-backdrop" style="display: none;">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>📱 Entrance QR Code - Customer Fast Login</h3>
+                <button class="modal-close" id="btnCloseEntranceQr">✕</button>
+            </div>
+            <div class="modal-body text-center">
+                <p>Put this QR sign at the clinic or office entrance.<br>Customers scan with their phone camera to log in and get their live token pass instantly:</p>
+                <div class="qr-preview-box">
+                    <img src="/qr-entrance" alt="Scan to Login" class="qr-img">
+                </div>
+                <div class="qr-url-box">
+                    <code>http://{{ lan_ip }}:{{ port }}/login</code>
+                </div>
+                <div class="modal-footer-btns" style="margin-top:1rem; display:flex; gap:10px; justify-content:center;">
+                    <a href="/login" target="_blank" class="btn btn-outline">Open Mobile Login Page ↗</a>
+                    <button class="btn btn-primary" onclick="window.print()">Print Entrance Sign</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for QR Code Signage -->
+    <div id="qrModal" class="modal-backdrop" style="display: none;">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>Customer Registration QR Code</h3>
+                <button class="modal-close" id="btnCloseQr">✕</button>
+            </div>
+            <div class="modal-body text-center">
+                <p>Customers can scan this code with their phone camera to get a digital token:</p>
+                <div class="qr-preview-box">
+                    <img id="qrImageModal" src="/qr" alt="Scan to register" class="qr-img">
+                </div>
+                <div class="qr-url-box">
+                    <code id="qrUrlText">http://{{ lan_ip }}:{{ port }}/register</code>
+                </div>
+                <div class="modal-footer-btns">
+                    <a href="/register" target="_blank" class="btn btn-outline">Open Registration Page ↗</a>
+                    <button class="btn btn-primary" onclick="window.print()">Print Display Sign</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Supabase Cloud Database -->
+    <div id="supabaseModal" class="modal-backdrop" style="display: none;">
+        <div class="modal-card" style="max-width: 600px;">
+            <div class="modal-header">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span style="font-size:1.3rem;">☁️</span>
+                    <div>
+                        <h3 style="margin:0;">Supabase Cloud Integration</h3>
+                        <div style="font-size:0.78rem; color:#94a3b8;">Real-Time PostgreSQL Database • Principles of Digital Systems & Design</div>
+                    </div>
+                </div>
+                <button class="modal-close" id="btnCloseSupabase">✕</button>
+            </div>
+            <div class="modal-body">
+                <div style="background:#09101d; border:1px solid #1e293b; border-radius:12px; padding:1rem; margin-bottom:1rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <span style="font-size:0.85rem; font-weight:700; color:#cbd5e1;">Cloud Connection Status:</span>
+                        <span id="sbStatusBadge" style="background:rgba(62,207,142,0.15); border:1px solid #3ECF8E; color:#3ECF8E; padding:3px 10px; border-radius:999px; font-size:0.78rem; font-weight:800;">Checking...</span>
+                    </div>
+                    <div style="font-size:0.8rem; color:#94a3b8; line-height:1.5;">
+                        <div><strong>Project URL:</strong> <code id="sbProjectUrl" style="color:#38bdf8;">https://mnsfeojsbzomvhcuiaur.supabase.co</code></div>
+                        <div><strong>Secret Key:</strong> <span style="color:#3ECF8E;">Active (Privileged Server Access)</span></div>
+                        <div id="sbTablesNotice" style="margin-top:6px; font-size:0.78rem; color:#f59e0b;"></div>
+                    </div>
+                </div>
+
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:1rem;">
+                    <button class="btn btn-primary" id="btnSyncSupabaseNow" style="background:#3ECF8E; color:#04240f; font-weight:800; justify-content:center;">
+                        🚀 Sync All Data to Cloud
+                    </button>
+                    <a href="https://supabase.com/dashboard/project/mnsfeojsbzomvhcuiaur/sql/new" target="_blank" class="btn btn-outline" style="border-color:#38bdf8; color:#38bdf8; justify-content:center; text-decoration:none;">
+                        ↗ Open Supabase SQL Editor
+                    </a>
+                </div>
+
+                <div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                        <span style="font-size:0.82rem; font-weight:700; color:#cbd5e1;">Database Schema (Copy & Run in SQL Editor):</span>
+                        <button type="button" class="btn btn-outline-sm" id="btnCopySbSchema" style="padding:2px 8px; font-size:0.75rem;">📋 Copy SQL</button>
+                    </div>
+                    <textarea id="sbSchemaText" readonly style="width:100%; height:140px; background:#050b14; border:1px solid #1e293b; border-radius:8px; color:#94a3b8; font-family:'JetBrains Mono', monospace; font-size:0.75rem; padding:8px; box-sizing:border-box; outline:none; resize:vertical;"></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Linking WhatsApp Web -->
+    <div id="whatsappWebModal" class="modal-backdrop" style="display: none;">
+        <div class="modal-card" style="max-width: 540px;">
+            <div class="modal-header">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span style="font-size:1.4rem;">💬</span>
+                    <div>
+                        <h3 style="margin:0;">Link Staff WhatsApp (Live Automated Sender)</h3>
+                        <div style="font-size:0.78rem; color:#94a3b8;">Instant automated dispatch to patients without API costs</div>
+                    </div>
+                </div>
+                <button class="modal-close" id="btnCloseWhatsAppWeb">✕</button>
+            </div>
+            <div class="modal-body text-center">
+                <!-- Status Bar -->
+                <div style="display:flex; justify-content:space-between; align-items:center; background:#09101d; border:1px solid #1e293b; border-radius:12px; padding:0.75rem 1rem; margin-bottom:1rem;">
+                    <span style="font-size:0.85rem; font-weight:700; color:#cbd5e1;">WhatsApp Sender Status:</span>
+                    <span id="waWebStatusBadge" style="background:rgba(245,158,11,0.15); border:1px solid #f59e0b; color:#fbbf24; padding:3px 10px; border-radius:999px; font-size:0.78rem; font-weight:800;">
+                        Starting...
+                    </span>
+                </div>
+
+                <!-- QR View Container (Visible when waiting for scan) -->
+                <div id="waWebQrSection">
+                    <p style="font-size:0.85rem; color:#cbd5e1; margin:0 0 0.75rem;">
+                        Scan this QR with WhatsApp on your phone to link SmartQ as an automated sender:
+                    </p>
+
+                    <div style="background:#ffffff; border:3px solid #25D366; border-radius:16px; padding:10px; display:inline-block; box-shadow:0 10px 25px rgba(37,211,102,0.25);">
+                        <img id="waWebQrImg" src="/api/whatsapp/web/qr.png" alt="Scan WhatsApp QR" style="width:220px; height:220px; display:block; border-radius:8px;">
+                    </div>
+
+                    <div style="margin-top:0.75rem;">
+                        <button type="button" class="btn btn-outline-sm" id="btnRefreshWaWebQr" style="padding:4px 12px; font-size:0.78rem;">
+                            ↻ Refresh QR Code
+                        </button>
+                    </div>
+
+                    <!-- Step-by-Step Instructions -->
+                    <div style="background:#09101d; border:1px solid #1e293b; border-radius:12px; padding:0.85rem; margin-top:1rem; text-align:left; font-size:0.8rem; color:#94a3b8; line-height:1.6;">
+                        <strong style="color:#ffffff;">How to Link WhatsApp:</strong>
+                        <ol style="margin:4px 0 0 1.2rem; padding:0;">
+                            <li>Open WhatsApp on your Android phone or iPhone.</li>
+                            <li>Tap <strong>Settings</strong> or <strong>Menu (⋮)</strong> > <strong>Linked Devices</strong>.</li>
+                            <li>Tap <strong>Link a device</strong> and scan the QR code above.</li>
+                        </ol>
+                    </div>
+                </div>
+
+                <!-- Connected State Container (Visible when logged in) -->
+                <div id="waWebConnectedSection" style="display:none; text-align:center; padding:1rem 0;">
+                    <div style="font-size:3rem; margin-bottom:0.5rem;">🎉</div>
+                    <h3 style="color:#25D366; margin:0 0 0.5rem;">WhatsApp Connected & Ready!</h3>
+                    <p style="font-size:0.85rem; color:#cbd5e1; line-height:1.5;">
+                        Your WhatsApp account is now linked. Whenever a patient registers, they will <strong>instantly receive automated queue confirmations and alerts directly from this WhatsApp account!</strong>
+                    </p>
+                    <div style="background:#09101d; border:1px solid #1e293b; border-radius:12px; padding:0.75rem; margin-top:1rem; font-size:0.82rem; color:#38bdf8;">
+                        Total Automated Messages Sent: <strong id="waWebSentCount" style="color:#ffffff;">0</strong>
+                    </div>
+
+                    <!-- Instant Test Message Box -->
+                    <div style="background:#09101d; border:1px solid #1e293b; border-radius:12px; padding:1rem; margin-top:1rem; text-align:left;">
+                        <div style="font-size:0.82rem; font-weight:700; color:#cbd5e1; margin-bottom:0.5rem;">Send Test Message:</div>
+                        <div style="display:flex; gap:8px;">
+                            <input type="tel" id="waTestPhone" class="form-control" placeholder="10-digit phone" maxlength="10" style="width:130px; font-size:0.85rem; padding:0.5rem;">
+                            <input type="text" id="waTestText" class="form-control" value="Hello! SmartQ Automated WhatsApp connected." style="flex:1; font-size:0.85rem; padding:0.5rem;">
+                            <button class="btn btn-primary" id="btnSendWaTest" style="background:#25D366; color:#04240f; font-weight:800; font-size:0.8rem; padding:0.5rem 0.85rem;">Send</button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Audio Elements for Alerts -->
+    <audio id="audioBeep" preload="auto">
+        <source src="data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU9vT18A" type="audio/wav">
+    </audio>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

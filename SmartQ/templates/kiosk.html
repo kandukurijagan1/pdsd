@@ -1,0 +1,1824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartQ - Method 1: Voice Kiosk | వాయిస్ కియోస్క్</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Chivo+Mono:wght@700&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        .kiosk-sim-body {
+            background: radial-gradient(circle at center, #1e293b 0%, #060911 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            color: #f8fafc;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .kiosk-sim-container {
+            width: 100%;
+            max-width: 680px;
+        }
+
+        /* Notice if opened on IP instead of localhost */
+        .localhost-warning-banner {
+            background: #d97706;
+            color: #ffffff;
+            padding: 0.65rem 1rem;
+            border-radius: 8px;
+            margin-bottom: 0.85rem;
+            font-size: 0.85rem;
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(217, 119, 6, 0.4);
+        }
+
+        .localhost-warning-banner a {
+            background: #ffffff;
+            color: #b45309;
+            padding: 0.25rem 0.65rem;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 700;
+            margin-left: 0.5rem;
+        }
+
+        .kiosk-header-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.85rem;
+        }
+
+        .sim-title-group h1 {
+            font-size: 1.45rem;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .method-badge {
+            background: rgba(16, 185, 129, 0.2);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.4);
+            font-size: 0.75rem;
+            font-weight: 800;
+            padding: 0.25rem 0.65rem;
+            border-radius: 9999px;
+            letter-spacing: 0.05em;
+        }
+
+        .lang-switch-pill {
+            display: flex;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 9999px;
+            padding: 3px;
+        }
+
+        .btn-lang-choice {
+            background: transparent;
+            border: none;
+            color: #94a3b8;
+            padding: 0.35rem 0.85rem;
+            font-size: 0.85rem;
+            font-weight: 700;
+            border-radius: 9999px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-lang-choice.active {
+            background: #2563eb;
+            color: #ffffff;
+            box-shadow: 0 2px 10px rgba(37, 99, 235, 0.5);
+        }
+
+        .kiosk-chassis {
+            background: linear-gradient(145deg, #1f2937, #111827);
+            border: 3px solid #374151;
+            border-radius: 20px;
+            padding: 1.5rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8), inset 0 1px 2px rgba(255, 255, 255, 0.1);
+            position: relative;
+        }
+
+        /* 16x2 Character LCD Display */
+        .lcd-bezel {
+            background: #0f172a;
+            border: 4px solid #1e293b;
+            border-radius: 12px;
+            padding: 0.9rem 1.25rem;
+            margin-bottom: 1.15rem;
+            box-shadow: inset 0 4px 10px rgba(0, 0, 0, 0.8), 0 2px 4px rgba(255, 255, 255, 0.05);
+            position: relative;
+        }
+
+        .lcd-label {
+            position: absolute;
+            top: -10px;
+            left: 20px;
+            background: #1f2937;
+            padding: 0 8px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: #9ca3af;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .lcd-screen {
+            background-color: #0b3b60;
+            border-radius: 6px;
+            padding: 0.75rem 1rem;
+            box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.6), 0 0 20px rgba(11, 59, 96, 0.4);
+            font-family: 'Chivo Mono', 'Courier New', monospace;
+            color: #ffffff;
+            font-size: 1.4rem;
+            letter-spacing: 2px;
+            line-height: 1.4;
+            user-select: none;
+            overflow: hidden;
+            text-shadow: 0 0 6px rgba(255, 255, 255, 0.8);
+        }
+
+        .lcd-row {
+            white-space: pre;
+            min-height: 1.4em;
+        }
+
+        /* Method 1 Interactive Voice Assistant Panel */
+        .voice-assistant-panel {
+            background: rgba(15, 23, 42, 0.97);
+            border: 2px solid #3b82f6;
+            border-radius: 16px;
+            padding: 1.4rem;
+            margin-bottom: 1.15rem;
+            text-align: center;
+            box-shadow: 0 15px 35px -5px rgba(59, 130, 246, 0.35);
+            display: none;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .assistant-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #60a5fa;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .step-pill {
+            background: #1e293b;
+            color: #38bdf8;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.8rem;
+            border: 1px solid #334155;
+            font-weight: 700;
+        }
+
+        .voice-prompt-text {
+            font-size: 1.35rem;
+            font-weight: 800;
+            color: #ffffff;
+            margin: 0.35rem 0 0.15rem;
+            min-height: 1.4em;
+        }
+
+        .voice-sub-prompt {
+            font-size: 0.85rem;
+            color: #94a3b8;
+            margin-bottom: 0.75rem;
+        }
+
+        /* Audio Playing Speaker Glow Indicator */
+        .speaker-status-bar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+            font-size: 0.8rem;
+            color: #38bdf8;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        /* Mic & Timer Row */
+        .mic-timer-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1.5rem;
+            margin: 0.85rem 0;
+        }
+
+        .mic-waveform-wrap {
+            position: relative;
+            width: 80px;
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .mic-icon-circle {
+            width: 70px;
+            height: 70px;
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            color: #ffffff;
+            z-index: 2;
+            box-shadow: 0 0 20px rgba(37, 99, 235, 0.6);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .mic-icon-circle.mic-listening {
+            background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+            box-shadow: 0 0 25px rgba(239, 68, 68, 0.8) !important;
+        }
+
+        .mic-ripple {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: rgba(239, 68, 68, 0.4);
+            animation: pulseRipple 1.4s infinite ease-out;
+            z-index: 1;
+            display: none;
+        }
+
+        @keyframes pulseRipple {
+            0% { transform: scale(0.9); opacity: 0.9; }
+            100% { transform: scale(1.6); opacity: 0; }
+        }
+
+        .timer-badge {
+            font-family: var(--font-mono);
+            font-size: 0.95rem;
+            font-weight: 700;
+            background: #0f172a;
+            border: 1px solid #334155;
+            padding: 0.4rem 0.8rem;
+            border-radius: 8px;
+            color: #fbbf24;
+        }
+
+        /* Real-time Audio Visualizer & Level */
+        .visualizer-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin: 0.4rem auto 0.6rem;
+            max-width: 320px;
+            width: 100%;
+        }
+
+        #audioVisualizer {
+            background: #0b1329;
+            border: 1px solid #1e293b;
+            border-radius: 8px;
+            width: 100%;
+            height: 36px;
+            box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.6);
+            display: block;
+        }
+
+        .mic-status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.8rem;
+            color: #94a3b8;
+            font-weight: 600;
+            margin-top: 5px;
+        }
+
+        .status-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: #64748b;
+            display: inline-block;
+        }
+
+        .status-dot.active {
+            background: #10b981;
+            box-shadow: 0 0 8px #10b981;
+            animation: pulseDot 0.8s infinite alternate;
+        }
+
+        @keyframes pulseDot {
+            from { opacity: 0.6; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1.15); }
+        }
+
+        /* Auto Advance Banner */
+        .auto-advance-banner {
+            display: none;
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid #10b981;
+            color: #34d399;
+            padding: 0.45rem 0.85rem;
+            border-radius: 8px;
+            font-size: 0.88rem;
+            font-weight: 700;
+            margin: 0.4rem auto;
+            text-align: center;
+            animation: fadeIn 0.2s ease-in;
+        }
+
+        /* Quick Name Buttons for Illiterate / Fast Testing */
+        .quick-names-container {
+            margin: 0.65rem 0 0.35rem;
+            text-align: center;
+        }
+
+        .quick-names-title {
+            font-size: 0.78rem;
+            color: #94a3b8;
+            margin-bottom: 0.4rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .quick-names-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            justify-content: center;
+        }
+
+        .btn-name-chip {
+            background: #1e293b;
+            border: 1px solid #334155;
+            color: #f1f5f9;
+            padding: 0.4rem 0.85rem;
+            border-radius: 9999px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .btn-name-chip:hover {
+            background: #2563eb;
+            border-color: #3b82f6;
+            color: #ffffff;
+            transform: translateY(-1px);
+        }
+
+        .btn-name-chip:active {
+            transform: scale(0.96);
+        }
+
+        /* 10-Digit Mobile Visual Boxes */
+        .phone-boxes-container {
+            display: none;
+            margin: 0.85rem 0;
+        }
+
+        .boxes-title {
+            font-size: 0.8rem;
+            color: #94a3b8;
+            margin-bottom: 0.4rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .phone-boxes-grid {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            gap: 5px;
+            max-width: 480px;
+            margin: 0 auto;
+        }
+
+        .digit-box {
+            height: 44px;
+            background: #0f172a;
+            border: 2px solid #334155;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-mono);
+            font-size: 1.35rem;
+            font-weight: 800;
+            color: #64748b;
+            transition: all 0.15s;
+        }
+
+        .digit-box.filled {
+            border-color: #10b981;
+            color: #34d399;
+            background: rgba(16, 185, 129, 0.15);
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+        }
+
+        .digit-box.active-box {
+            border-color: #3b82f6;
+            color: #ffffff;
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+            animation: pulseBox 0.8s infinite alternate;
+        }
+
+        @keyframes pulseBox {
+            from { border-color: #3b82f6; }
+            to { border-color: #60a5fa; }
+        }
+
+        /* Transcript & Manual Input */
+        .input-display-wrap {
+            margin: 0.75rem 0;
+        }
+
+        .live-transcript-box {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 0.6rem 1rem;
+            font-family: var(--font-mono);
+            font-size: 1.15rem;
+            color: #38bdf8;
+            font-weight: 700;
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            letter-spacing: 0.5px;
+            width: 100%;
+            outline: none;
+            box-sizing: border-box;
+            text-align: center;
+        }
+
+        .live-transcript-box:focus {
+            border-color: #3b82f6;
+        }
+
+        /* Touch Numpad */
+        .touch-numpad-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+            max-width: 320px;
+            margin: 0.85rem auto 0.5rem;
+        }
+
+        .btn-num-key {
+            background: #1e293b;
+            border: 1px solid #475569;
+            color: #f8fafc;
+            font-family: var(--font-mono);
+            font-size: 1.35rem;
+            font-weight: 700;
+            padding: 0.65rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.1s;
+            user-select: none;
+        }
+
+        .btn-num-key:active {
+            background: #3b82f6;
+            transform: scale(0.95);
+        }
+
+        .btn-num-key.btn-action-key {
+            background: #334155;
+            font-size: 1rem;
+        }
+
+        /* Action Buttons */
+        .assistant-actions-row {
+            display: flex;
+            justify-content: center;
+            gap: 0.65rem;
+            margin-top: 0.85rem;
+            flex-wrap: wrap;
+        }
+
+        .btn-action-primary {
+            background: #2563eb;
+            color: #ffffff;
+            border: none;
+            padding: 0.6rem 1.25rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .btn-action-primary:hover {
+            background: #1d4ed8;
+        }
+
+        .btn-action-outline {
+            background: #1e293b;
+            border: 1px solid #475569;
+            color: #cbd5e1;
+            padding: 0.6rem 1rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-action-outline:hover {
+            background: #334155;
+        }
+
+        /* Main CTA Button */
+        .patient-cta-wrap {
+            margin-bottom: 1.15rem;
+        }
+
+        .btn-patient-touch {
+            width: 100%;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            border: none;
+            border-radius: 14px;
+            padding: 1.35rem 1rem;
+            color: #ffffff;
+            cursor: pointer;
+            box-shadow: 0 8px 0 #047857, 0 15px 25px rgba(16, 185, 129, 0.4);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease;
+            user-select: none;
+        }
+
+        .btn-patient-touch:active {
+            transform: translateY(6px);
+            box-shadow: 0 2px 0 #047857, 0 5px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-patient-title {
+            font-size: 1.45rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-patient-sub {
+            font-size: 0.95rem;
+            opacity: 0.95;
+            font-weight: 600;
+            margin-top: 0.3rem;
+        }
+
+        /* Secondary Buttons */
+        .secondary-buttons-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.85rem;
+            margin-top: 0.75rem;
+        }
+
+        .hw-btn-sm {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.85rem;
+            border-radius: 10px;
+            cursor: pointer;
+            border: none;
+            font-weight: 700;
+            font-size: 0.85rem;
+            color: #ffffff;
+            user-select: none;
+        }
+
+        .btn-yellow-kiosk {
+            background: linear-gradient(180deg, #f59e0b 0%, #b45309 100%);
+            box-shadow: 0 4px 0 #78350f;
+        }
+
+        .btn-yellow-kiosk:active {
+            transform: translateY(3px);
+            box-shadow: none;
+        }
+
+        .btn-red-kiosk {
+            background: linear-gradient(180deg, #ef4444 0%, #b91c1c 100%);
+            box-shadow: 0 4px 0 #7f1d1d;
+        }
+
+        .btn-red-kiosk:active {
+            transform: translateY(3px);
+            box-shadow: none;
+        }
+
+        .kiosk-footer-nav {
+            display: flex;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-top: 1.15rem;
+        }
+
+        .kiosk-footer-nav a {
+            flex: 1;
+            text-align: center;
+            background: #1e293b;
+            color: #94a3b8;
+            padding: 0.65rem 1rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 600;
+            border: 1px solid #334155;
+            transition: all 0.2s;
+        }
+
+        .kiosk-footer-nav a:hover {
+            background: #334155;
+            color: #ffffff;
+        }
+    </style>
+</head>
+<body class="kiosk-sim-body">
+
+    <div class="kiosk-sim-container">
+        
+        <!-- Localhost Banner for Chrome Mic Security -->
+        <div class="localhost-warning-banner" id="localhostBanner">
+            <span>⚠️ For Chrome microphone speech recognition, please open on <strong>localhost</strong>:</span>
+            <a href="http://localhost:5000/kiosk" id="linkSwitchLocalhost">Switch to localhost:5000/kiosk ➔</a>
+        </div>
+
+        <div class="kiosk-header-bar">
+            <div class="sim-title-group">
+                <h1>⚡ SmartQ Voice Kiosk</h1>
+                <span class="method-badge">Method 1 Active</span>
+            </div>
+            <!-- Language Selector -->
+            <div class="lang-switch-pill">
+                <button type="button" class="btn-lang-choice active" id="btnChoiceEn">English</button>
+                <button type="button" class="btn-lang-choice" id="btnChoiceTe">తెలుగు</button>
+                <button type="button" class="btn-lang-choice" id="btnChoiceTa">தமிழ்</button>
+            </div>
+        </div>
+
+        <!-- Physical Kiosk Chassis -->
+        <div class="kiosk-chassis">
+            
+            <!-- 16x2 Character LCD Display (Simulating I2C LCD on GPIO 21, 22) -->
+            <div class="lcd-bezel">
+                <span class="lcd-label">16×2 LCD Module (I2C 0x27)</span>
+                <div class="lcd-screen" id="lcdDisplay">
+                    <div class="lcd-row" id="lcdRow0">SmartQ Kiosk   </div>
+                    <div class="lcd-row" id="lcdRow1">Press to Start </div>
+                </div>
+            </div>
+
+            <!-- Method 1: Interactive Voice Assistant Panel -->
+            <div class="voice-assistant-panel" id="voiceAssistantPanel">
+                <div class="assistant-header">
+                    <span id="txtAssistHeader">Method 1: Voice Assistant</span>
+                    <span class="step-pill" id="stepPillIndicator">Step 1: Patient Name</span>
+                </div>
+                
+                <div class="voice-prompt-text" id="voicePromptText">Please tell your name...</div>
+                <div class="voice-sub-prompt" id="voiceSubPrompt">Listen to the voice prompt, then speak clearly into microphone</div>
+
+                <div class="speaker-status-bar" id="speakerStatusBar">
+                    <span id="speakerIcon">🔊</span>
+                    <span id="speakerStatusText">Assistant Speaking...</span>
+                </div>
+
+                <!-- Mic Circle & Timer Row -->
+                <div class="mic-timer-row">
+                    <div class="mic-waveform-wrap">
+                        <div class="mic-ripple" id="micRipple"></div>
+                        <div class="mic-icon-circle" id="micCircle" title="Tap to start speaking">🎙️</div>
+                    </div>
+                    <div class="timer-badge" id="timerBadge">⏱️ Time: 15s</div>
+                </div>
+
+                <!-- Real-time Audio Visualizer (Live Microphone Activity) -->
+                <div class="visualizer-wrap" id="visualizerWrap">
+                    <canvas id="audioVisualizer" width="300" height="36"></canvas>
+                    <div class="mic-status-badge" id="micStatusBadge">
+                        <span class="status-dot" id="statusDot"></span>
+                        <span id="micStatusText">Microphone Ready</span>
+                    </div>
+                </div>
+
+                <!-- Auto Advance Notification Banner -->
+                <div class="auto-advance-banner" id="autoAdvanceBanner">
+                    ✓ <span id="autoAdvanceMsg">Name detected! Continuing...</span>
+                </div>
+
+                <!-- 10-Digit Mobile Number Visual Boxes -->
+                <div class="phone-boxes-container" id="phoneBoxesContainer">
+                    <div class="boxes-title" id="txtBoxesTitle">Spoken 10-Digit Mobile Number:</div>
+                    <div class="phone-boxes-grid">
+                        <span class="digit-box" id="dBox0">-</span>
+                        <span class="digit-box" id="dBox1">-</span>
+                        <span class="digit-box" id="dBox2">-</span>
+                        <span class="digit-box" id="dBox3">-</span>
+                        <span class="digit-box" id="dBox4">-</span>
+                        <span class="digit-box" id="dBox5">-</span>
+                        <span class="digit-box" id="dBox6">-</span>
+                        <span class="digit-box" id="dBox7">-</span>
+                        <span class="digit-box" id="dBox8">-</span>
+                        <span class="digit-box" id="dBox9">-</span>
+                    </div>
+                </div>
+
+                <!-- Transcript / Manual Edit Input -->
+                <div class="input-display-wrap">
+                    <input type="text" class="live-transcript-box" id="liveTranscript" placeholder="Listening for speech...">
+                </div>
+
+                <!-- Quick Name Selection Chips (For Illiterate / Noise Fallback) -->
+                <div class="quick-names-container" id="quickNamesContainer">
+                    <div class="quick-names-title" id="txtQuickNames">లేదా పేరును ఇక్కడ ఎంచుకోండి (Or tap your name):</div>
+                    <div class="quick-names-grid">
+                        <button type="button" class="btn-name-chip" onclick="window.selectQuickName('Ramesh')">👨 Ramesh (రమేష్)</button>
+                        <button type="button" class="btn-name-chip" onclick="window.selectQuickName('Murugan')">👨 Murugan (முருகன்)</button>
+                        <button type="button" class="btn-name-chip" onclick="window.selectQuickName('Lakshmi')">👩 Lakshmi (లక్ష్మి)</button>
+                        <button type="button" class="btn-name-chip" onclick="window.selectQuickName('Selvam')">👨 Selvam (செல்வம்)</button>
+                        <button type="button" class="btn-name-chip" onclick="window.selectQuickName('Kavitha')">👩 Kavitha (கவிதா)</button>
+                        <button type="button" class="btn-name-chip" onclick="window.selectQuickName('Venkatesh')">👨 Venkatesh (వెంకటేష్)</button>
+                        <button type="button" class="btn-name-chip" onclick="window.selectQuickName('Priya')">👩 Priya (பிரியா)</button>
+                    </div>
+                </div>
+
+                <!-- On-Screen Touch Numpad (Appears for Mobile Step) -->
+                <div id="touchNumpadWrap" style="display: none;">
+                    <div class="touch-numpad-grid">
+                        <button type="button" class="btn-num-key" onclick="window.enterKey('1')">1</button>
+                        <button type="button" class="btn-num-key" onclick="window.enterKey('2')">2</button>
+                        <button type="button" class="btn-num-key" onclick="window.enterKey('3')">3</button>
+                        <button type="button" class="btn-num-key" onclick="window.enterKey('4')">4</button>
+                        <button type="button" class="btn-num-key" onclick="window.enterKey('5')">5</button>
+                        <button type="button" class="btn-num-key" onclick="window.enterKey('6')">6</button>
+                        <button type="button" class="btn-num-key" onclick="window.enterKey('7')">7</button>
+                        <button type="button" class="btn-num-key" onclick="window.enterKey('8')">8</button>
+                        <button type="button" class="btn-num-key" onclick="window.enterKey('9')">9</button>
+                        <button type="button" class="btn-num-key btn-action-key" onclick="window.enterKey('clear')">Clear</button>
+                        <button type="button" class="btn-num-key" onclick="window.enterKey('0')">0</button>
+                        <button type="button" class="btn-num-key btn-action-key" onclick="window.enterKey('backspace')">⌫</button>
+                    </div>
+                </div>
+
+                <!-- Action Buttons: Next / Speak Again / Cancel -->
+                <div class="assistant-actions-row">
+                    <button type="button" class="btn-action-primary" id="btnNextStep">
+                        ✓ <span id="txtBtnNext">Confirm & Continue</span>
+                    </button>
+                    <button type="button" class="btn-action-outline" id="btnSpeakAgain">
+                        🎙️ <span id="txtBtnSpeakAgain">Tap to Speak</span>
+                    </button>
+                    <button type="button" class="btn-action-outline" id="btnRepeatSpeech">
+                        🔊 <span id="txtBtnRepeat">Repeat Voice</span>
+                    </button>
+                    <button type="button" class="btn-action-outline" id="btnCancelVoice">
+                        ✕ <span id="txtBtnCancel">Cancel</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Main Patient Action (Large Push Button) -->
+            <div class="patient-cta-wrap" id="patientCtaWrap">
+                <button class="btn-patient-touch" id="btnSimGetToken">
+                    <div class="btn-patient-title">
+                        <span>🎟️</span>
+                        <span id="txtMainBtnTitle">PRESS TO GET TOKEN</span>
+                    </div>
+                    <div class="btn-patient-sub" id="txtMainBtnSub">
+                        టోకెన్ కోసం ఇక్కడ నొక్కండి • Speaks Name & Mobile Number
+                    </div>
+                </button>
+            </div>
+
+            <!-- Secondary Controls (Repeat Announcement & Help Alert) -->
+            <div class="secondary-buttons-row">
+                <button class="hw-btn-sm btn-yellow-kiosk" id="btnSimRepeat">
+                    <span>🔁</span>
+                    <span>Repeat Call (GPIO 26)</span>
+                </button>
+
+                <button class="hw-btn-sm btn-red-kiosk" id="btnSimHelp">
+                    <span>🚨</span>
+                    <span>Staff Help (GPIO 27)</span>
+                </button>
+            </div>
+
+        </div>
+
+        <div class="kiosk-footer-nav">
+            <a href="/" target="_blank">📊 Staff Counter Dashboard ↗</a>
+            <a href="/whatsapp" target="_blank" style="color:#25D366; border-color:rgba(37,211,102,0.5);">💬 WhatsApp Hub ↗</a>
+            <a href="/login" target="_blank">📱 Login Pass ↗</a>
+            <a href="/register" target="_blank">Method 2: QR Scan ↗</a>
+        </div>
+
+    </div>
+
+    <!-- Hidden HTML5 Audio Elements for Guaranteed Crystal-Clear Speech -->
+    <audio id="audioNamePromptEn" src="/static/audio/name_prompt_en.mp3" preload="auto"></audio>
+    <audio id="audioNamePromptTe" src="/static/audio/name_prompt_te.mp3" preload="auto"></audio>
+    <audio id="audioPhonePromptEn" src="/static/audio/phone_prompt_en.mp3" preload="auto"></audio>
+    <audio id="audioPhonePromptTe" src="/static/audio/phone_prompt_te.mp3" preload="auto"></audio>
+    <audio id="audioTokenSuccessEn" src="/static/audio/token_success_en.mp3" preload="auto"></audio>
+    <audio id="audioTokenSuccessTe" src="/static/audio/token_success_te.mp3" preload="auto"></audio>
+
+    <!-- Voice Assistant & Kiosk Logic -->
+    <script>
+        // Check if opened on IP instead of localhost (Chrome security notice)
+        if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+            document.getElementById('localhostBanner').style.display = 'flex';
+        }
+
+        const lcdRow0 = document.getElementById('lcdRow0');
+        const lcdRow1 = document.getElementById('lcdRow1');
+        const voiceAssistantPanel = document.getElementById('voiceAssistantPanel');
+        const patientCtaWrap = document.getElementById('patientCtaWrap');
+        const voicePromptText = document.getElementById('voicePromptText');
+        const voiceSubPrompt = document.getElementById('voiceSubPrompt');
+        const speakerStatusBar = document.getElementById('speakerStatusBar');
+        const speakerStatusText = document.getElementById('speakerStatusText');
+        const liveTranscript = document.getElementById('liveTranscript');
+        const stepPillIndicator = document.getElementById('stepPillIndicator');
+        const phoneBoxesContainer = document.getElementById('phoneBoxesContainer');
+        const touchNumpadWrap = document.getElementById('touchNumpadWrap');
+        const micCircle = document.getElementById('micCircle');
+        const micRipple = document.getElementById('micRipple');
+        const timerBadge = document.getElementById('timerBadge');
+
+        const visualizerCanvas = document.getElementById('audioVisualizer');
+        const statusDot = document.getElementById('statusDot');
+        const micStatusText = document.getElementById('micStatusText');
+        const autoAdvanceBanner = document.getElementById('autoAdvanceBanner');
+        const autoAdvanceMsg = document.getElementById('autoAdvanceMsg');
+        const quickNamesContainer = document.getElementById('quickNamesContainer');
+        const txtQuickNames = document.getElementById('txtQuickNames');
+
+        const btnNextStep = document.getElementById('btnNextStep');
+        const btnSpeakAgain = document.getElementById('btnSpeakAgain');
+        const btnRepeatSpeech = document.getElementById('btnRepeatSpeech');
+        const btnCancelVoice = document.getElementById('btnCancelVoice');
+
+        const btnChoiceEn = document.getElementById('btnChoiceEn');
+        const btnChoiceTe = document.getElementById('btnChoiceTe');
+        const btnChoiceTa = document.getElementById('btnChoiceTa');
+        const txtMainBtnTitle = document.getElementById('txtMainBtnTitle');
+        const txtMainBtnSub = document.getElementById('txtMainBtnSub');
+        const txtBtnNext = document.getElementById('txtBtnNext');
+        const txtBtnSpeakAgain = document.getElementById('txtBtnSpeakAgain');
+        const txtBtnRepeat = document.getElementById('txtBtnRepeat');
+        const txtBtnCancel = document.getElementById('txtBtnCancel');
+        const txtBoxesTitle = document.getElementById('txtBoxesTitle');
+
+        let selectedLang = 'en'; // 'en' or 'te'
+        let currentVoiceStep = 'IDLE'; // 'IDLE', 'NAME', 'PHONE', 'SUCCESS'
+        let patientName = '';
+        let patientPhone = '';
+        let recognizer = null;
+        let isListeningActive = false;
+        let stepCountdownTimer = null;
+        let secondsRemaining = 15;
+        let currentAudioEl = null;
+
+        let nameDebounceTimer = null;
+        let hasSpokenAudio = false;
+
+        // Web Audio & Live Visualizer
+        let micMediaStream = null;
+        let audioCtx = null;
+        let analyser = null;
+        let animFrameId = null;
+        let mediaRecorder = null;
+        let recordedAudioChunks = [];
+
+        // -------------------------------------------------------------
+        // Web Audio Synthesizer (Buzzer & Beeps)
+        // -------------------------------------------------------------
+        function getAudioContext() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            return audioCtx;
+        }
+
+        function playBeep(freq = 900, duration = 0.1) {
+            try {
+                const ctx = getAudioContext();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(freq, ctx.currentTime);
+                gain.gain.setValueAtTime(0.2, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + duration);
+            } catch (e) {}
+        }
+
+        function playChime() {
+            try {
+                const ctx = getAudioContext();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.2);
+                gain.gain.setValueAtTime(0.25, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.35);
+            } catch (e) {}
+        }
+
+        // -------------------------------------------------------------
+        // Real-time Audio Visualizer (Live Microphone Waves)
+        // -------------------------------------------------------------
+        async function initMicrophoneAndVisualizer() {
+            try {
+                getAudioContext();
+                if (!micMediaStream) {
+                    micMediaStream = await navigator.mediaDevices.getUserMedia({
+                        audio: {
+                            echoCancellation: true,
+                            noiseSuppression: true,
+                            autoGainControl: true
+                        }
+                    });
+                }
+
+                if (!analyser && micMediaStream) {
+                    analyser = audioCtx.createAnalyser();
+                    analyser.fftSize = 64;
+                    const sourceNode = audioCtx.createMediaStreamSource(micMediaStream);
+                    sourceNode.connect(analyser);
+                }
+
+                startVisualizerLoop();
+                return true;
+            } catch (err) {
+                console.warn("Microphone access notice:", err);
+                if (micStatusText) micStatusText.innerText = "Mic blocked / Check permission";
+                return false;
+            }
+        }
+
+        function startVisualizerLoop() {
+            if (!analyser || !visualizerCanvas) return;
+            const ctx = visualizerCanvas.getContext('2d');
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+
+            function render() {
+                analyser.getByteFrequencyData(dataArray);
+                ctx.clearRect(0, 0, visualizerCanvas.width, visualizerCanvas.height);
+
+                const barWidth = (visualizerCanvas.width / bufferLength) * 1.8;
+                let x = 0;
+                let totalEnergy = 0;
+
+                for (let i = 0; i < bufferLength; i++) {
+                    const barHeight = (dataArray[i] / 255) * visualizerCanvas.height * 0.95;
+                    totalEnergy += dataArray[i];
+
+                    const grad = ctx.createLinearGradient(0, visualizerCanvas.height, 0, 0);
+                    grad.addColorStop(0, '#10b981');
+                    grad.addColorStop(0.5, '#38bdf8');
+                    grad.addColorStop(1, '#60a5fa');
+
+                    ctx.fillStyle = grad;
+                    ctx.fillRect(x, visualizerCanvas.height - barHeight, Math.max(1, barWidth - 1), barHeight);
+                    x += barWidth + 1;
+                }
+
+                const avgVol = totalEnergy / bufferLength;
+                if (avgVol > 12 && isListeningActive) {
+                    hasSpokenAudio = true;
+                    if (statusDot) statusDot.className = 'status-dot active';
+                    if (micStatusText) micStatusText.innerText = selectedLang === 'te' ? "ధ్వని వినబడుతోంది 🟢" : "Voice detected 🟢";
+                } else if (isListeningActive) {
+                    if (statusDot) statusDot.className = 'status-dot';
+                    if (micStatusText) micStatusText.innerText = selectedLang === 'te' ? "మైక్రోఫోన్ సిద్ధంగా ఉంది (మాట్లాడండి)" : "Listening mic (Speak clearly)...";
+                }
+
+                if (currentVoiceStep === 'NAME' || currentVoiceStep === 'PHONE') {
+                    animFrameId = requestAnimationFrame(render);
+                }
+            }
+
+            render();
+        }
+
+        // -------------------------------------------------------------
+        // Audio Recorder for Server Fallback (transcribe via Python Google Speech)
+        // -------------------------------------------------------------
+        function startAudioRecorder() {
+            if (!micMediaStream) return;
+            try {
+                recordedAudioChunks = [];
+                const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : '';
+                mediaRecorder = mimeType ? new MediaRecorder(micMediaStream, { mimeType }) : new MediaRecorder(micMediaStream);
+
+                mediaRecorder.ondataavailable = (e) => {
+                    if (e.data && e.data.size > 0) {
+                        recordedAudioChunks.push(e.data);
+                    }
+                };
+
+                mediaRecorder.start(250);
+            } catch (e) {
+                console.warn("MediaRecorder start notice:", e);
+            }
+        }
+
+        function stopAudioRecorderAndTranscribe() {
+            if (!mediaRecorder || mediaRecorder.state === 'inactive') return;
+            try {
+                mediaRecorder.stop();
+                mediaRecorder.onstop = async () => {
+                    if (recordedAudioChunks.length === 0) return;
+                    const blob = new Blob(recordedAudioChunks, { type: 'audio/webm' });
+                    if (patientName.length < 2 && currentVoiceStep === 'NAME') {
+                        await sendAudioToBackend(blob, 'NAME');
+                    } else if (patientPhone.length < 10 && currentVoiceStep === 'PHONE') {
+                        await sendAudioToBackend(blob, 'PHONE');
+                    }
+                };
+            } catch (e) {}
+        }
+
+        async function sendAudioToBackend(audioBlob, step) {
+            try {
+                if (micStatusText) micStatusText.innerText = selectedLang === 'te' ? "గుర్తిస్తున్నాము..." : "Transcribing speech...";
+                const formData = new FormData();
+                formData.append('audio', audioBlob, 'speech.webm');
+
+                const res = await fetch(`/api/speech/transcribe?lang=${selectedLang}&step=${step}`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                if (data.success && data.transcript) {
+                    if (step === 'NAME' && currentVoiceStep === 'NAME' && data.transcript.length >= 2) {
+                        patientName = data.transcript;
+                        liveTranscript.value = patientName;
+                        updateLCD(`Name: ${patientName.substring(0, 10)}`, "Heard! >> Next  ");
+                        showAutoAdvanceBanner(`✓ ${data.transcript}`);
+                        setTimeout(promptForPhone, 1100);
+                    } else if (step === 'PHONE' && currentVoiceStep === 'PHONE' && data.digits.length === 10) {
+                        patientPhone = data.digits;
+                        liveTranscript.value = patientPhone;
+                        updateDigitBoxes(patientPhone);
+                        showAutoAdvanceBanner(`✓ 10 Digits Confirmed!`);
+                        setTimeout(submitVoiceToken, 900);
+                    }
+                }
+            } catch (err) {
+                console.warn("Backend transcribe notice:", err);
+            }
+        }
+
+        function showAutoAdvanceBanner(msg) {
+            if (autoAdvanceMsg && autoAdvanceBanner) {
+                autoAdvanceMsg.innerText = msg;
+                autoAdvanceBanner.style.display = 'block';
+            }
+        }
+
+        // -------------------------------------------------------------
+        // Guaranteed Voice Audio Playback (Authentic Human Prompts)
+        // -------------------------------------------------------------
+        function playVoiceAudio(audioId, onDone = null) {
+            stopListening();
+            if (currentAudioEl) {
+                currentAudioEl.pause();
+                currentAudioEl.currentTime = 0;
+            }
+
+            speakerStatusBar.style.display = 'flex';
+            speakerStatusText.innerText = selectedLang === 'te' ? "సహాయకుడు మాట్లాడుతున్నారు..." : "Assistant Speaking...";
+            if (micStatusText) micStatusText.innerText = "Assistant Speaking 🔊";
+
+            const audio = document.getElementById(audioId);
+            if (audio) {
+                currentAudioEl = audio;
+                audio.currentTime = 0;
+                audio.play().then(() => {
+                    audio.onended = () => {
+                        speakerStatusBar.style.display = 'none';
+                        setTimeout(() => { if (onDone) onDone(); }, 400);
+                    };
+                }).catch(err => {
+                    console.warn("Audio playback notice:", err);
+                    speakerStatusBar.style.display = 'none';
+                    if (onDone) onDone();
+                });
+            } else {
+                speakerStatusBar.style.display = 'none';
+                if (onDone) onDone();
+            }
+        }
+
+        // -------------------------------------------------------------
+        // Web Speech Recognition (Dual Engine + Auto Advance)
+        // -------------------------------------------------------------
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+        async function requestMicPermission() {
+            await initMicrophoneAndVisualizer();
+        }
+
+        function startListening() {
+            stopListening();
+            hasSpokenAudio = false;
+
+            if (autoAdvanceBanner) autoAdvanceBanner.style.display = 'none';
+
+            // Also start backend audio recorder buffer
+            startAudioRecorder();
+
+            if (!SpeechRecognition) {
+                liveTranscript.placeholder = selectedLang === 'te' 
+                    ? "మైక్రోఫోన్ అందుబాటులో లేదు. టైప్ చేయండి లేదా తాకండి." 
+                    : "Mic not supported. Please type or tap options below.";
+                return;
+            }
+
+            try {
+                recognizer = new SpeechRecognition();
+                recognizer.continuous = true;
+                recognizer.interimResults = true;
+                recognizer.lang = selectedLang === 'te' ? 'te-IN' : 'en-IN';
+
+                recognizer.onstart = () => {
+                    isListeningActive = true;
+                    micCircle.classList.add('mic-listening');
+                    micRipple.style.display = 'block';
+                    playBeep(880, 0.1);
+                    if (micStatusText) {
+                        micStatusText.innerText = selectedLang === 'te' 
+                            ? "మైక్రోఫోన్ వింటోంది (స్పష్టంగా మాట్లాడండి)..." 
+                            : "Listening mic (Speak clearly now)...";
+                    }
+                };
+
+                recognizer.onresult = (event) => {
+                    let interimText = '';
+                    let finalText = '';
+
+                    for (let i = 0; i < event.results.length; ++i) {
+                        const item = event.results[i];
+                        if (item.isFinal) {
+                            finalText += item[0].transcript + ' ';
+                        } else {
+                            interimText += item[0].transcript;
+                        }
+                    }
+
+                    const fullTranscript = (finalText + interimText).trim();
+                    if (!fullTranscript) return;
+
+                    hasSpokenAudio = true;
+
+                    if (currentVoiceStep === 'NAME') {
+                        patientName = fullTranscript;
+                        liveTranscript.value = patientName;
+                        updateLCD(`Name: ${patientName.substring(0, 10)}`, "Confirm Name >> ");
+
+                        // Auto-Advance Debounce (1.2 seconds of silence after hearing name)
+                        clearTimeout(nameDebounceTimer);
+                        if (patientName.length >= 2) {
+                            nameDebounceTimer = setTimeout(() => {
+                                if (currentVoiceStep === 'NAME' && patientName.length >= 2) {
+                                    playChime();
+                                    showAutoAdvanceBanner(selectedLang === 'te' 
+                                        ? `✓ పేరు: "${patientName}" (కొనసాగుతోంది...)` 
+                                        : `✓ Name: "${patientName}" (Continuing...)`);
+                                    setTimeout(() => {
+                                        if (autoAdvanceBanner) autoAdvanceBanner.style.display = 'none';
+                                        promptForPhone();
+                                    }, 900);
+                                }
+                            }, 1200);
+                        }
+                    } else if (currentVoiceStep === 'PHONE') {
+                        const digits = parseSpokenPhone(fullTranscript);
+                        if (digits.length > 0) {
+                            patientPhone = digits.substring(0, 10);
+                            liveTranscript.value = patientPhone;
+                            updateDigitBoxes(patientPhone);
+
+                            if (patientPhone.length === 10) {
+                                updateLCD("10 Digits Done! ", "Creating Token..");
+                                playChime();
+                                showAutoAdvanceBanner(selectedLang === 'te'
+                                    ? `✓ 10 అంకెల మొబైల్ ధృవీకరించబడింది!`
+                                    : `✓ 10-Digit Mobile Verified!`);
+                                setTimeout(() => {
+                                    if (autoAdvanceBanner) autoAdvanceBanner.style.display = 'none';
+                                    submitVoiceToken();
+                                }, 900);
+                            }
+                        }
+                    }
+                };
+
+                recognizer.onerror = (e) => {
+                    console.warn("Speech recognizer notice:", e.error);
+                    if (e.error === 'no-speech' || e.error === 'network') {
+                        // Attempt fallback to backend audio recording
+                        stopAudioRecorderAndTranscribe();
+                    }
+                };
+
+                recognizer.onend = () => {
+                    if (isListeningActive && (currentVoiceStep === 'NAME' || currentVoiceStep === 'PHONE')) {
+                        try { recognizer.start(); } catch (err) {}
+                    }
+                };
+
+                recognizer.start();
+            } catch (err) {
+                console.error("Recognizer start error:", err);
+            }
+        }
+
+        function stopListening() {
+            isListeningActive = false;
+            clearTimeout(nameDebounceTimer);
+            if (recognizer) {
+                try {
+                    recognizer.onend = null;
+                    recognizer.stop();
+                } catch (e) {}
+                recognizer = null;
+            }
+            micCircle.classList.remove('mic-listening');
+            micRipple.style.display = 'none';
+            if (statusDot) statusDot.className = 'status-dot';
+        }
+
+        micCircle.addEventListener('click', () => {
+            if (isListeningActive) {
+                stopListening();
+                liveTranscript.placeholder = "Paused. Tap 🎙️ to resume.";
+                if (micStatusText) micStatusText.innerText = "Paused. Tap mic to resume.";
+            } else {
+                startListening();
+            }
+        });
+
+        // -------------------------------------------------------------
+        // Quick 1-Tap Name Selection (For Illiterate / Hospital Noise)
+        // -------------------------------------------------------------
+        window.selectQuickName = function(name) {
+            patientName = name;
+            liveTranscript.value = name;
+            playChime();
+            updateLCD(`Name: ${name.substring(0, 10)}`, "Selected >> Next");
+            showAutoAdvanceBanner(selectedLang === 'te'
+                ? `✓ ఎంచుకోబడిన పేరు: "${name}"`
+                : `✓ Selected Name: "${name}"`);
+            setTimeout(() => {
+                if (autoAdvanceBanner) autoAdvanceBanner.style.display = 'none';
+                promptForPhone();
+            }, 750);
+        };
+
+        // -------------------------------------------------------------
+        // Spoken Number Parser
+        // -------------------------------------------------------------
+        const numberWordsMap = {
+            'zero': '0', 'one': '1', 'two': '2', 'three': '3', 'four': '4',
+            'five': '5', 'six': '6', 'seven': '7', 'eight': '8', 'nine': '9',
+            'oh': '0', 'double': '',
+            // Telugu digits
+            'సున్నా': '0', 'ఒకటి': '1', 'రెండు': '2', 'మూడు': '3', 'నాలుగు': '4',
+            'ఐదు': '5', 'ఆరు': '6', 'ఏడు': '7', 'ఎనిమిది': '8', 'తొమ్మిది': '9',
+            // Tamil digits
+            'பூஜ்ஜியம்': '0', 'பூஜ்யம்': '0',
+            'ஒன்று': '1', 'ஒன்னு': '1',
+            'இரண்டு': '2', 'ரெண்டு': '2',
+            'மூன்று': '3', 'மூணு': '3',
+            'நான்கு': '4', 'நாலு': '4',
+            'ஐந்து': '5', 'அஞ்சு': '5',
+            'ஆறு': '6',
+            'ஏழு': '7',
+            'எட்டு': '8',
+            'ஒன்பது': '9'
+        };
+
+        function parseSpokenPhone(transcript) {
+            let clean = ' ' + transcript.toLowerCase() + ' ';
+            for (let word in numberWordsMap) {
+                if (numberWordsMap[word] !== '') {
+                    clean = clean.split(word).join(' ' + numberWordsMap[word] + ' ');
+                }
+            }
+            let digits = clean.replace(/\D/g, '');
+            if (digits.length === 12 && digits.startsWith('91')) {
+                digits = digits.substring(2);
+            } else if (digits.length === 11 && digits.startsWith('0')) {
+                digits = digits.substring(1);
+            }
+            return digits;
+        }
+
+        function updateDigitBoxes(digits) {
+            for (let i = 0; i < 10; i++) {
+                const box = document.getElementById(`dBox${i}`);
+                if (i < digits.length) {
+                    box.innerText = digits[i];
+                    box.className = 'digit-box filled';
+                } else if (i === digits.length) {
+                    box.innerText = '-';
+                    box.className = 'digit-box active-box';
+                } else {
+                    box.innerText = '-';
+                    box.className = 'digit-box';
+                }
+            }
+        }
+
+        function resetDigitBoxes() {
+            for (let i = 0; i < 10; i++) {
+                const box = document.getElementById(`dBox${i}`);
+                box.innerText = '-';
+                box.className = 'digit-box';
+            }
+        }
+
+        // -------------------------------------------------------------
+        // Touch Numpad Handler
+        // -------------------------------------------------------------
+        window.enterKey = function(key) {
+            if (key === 'clear') {
+                patientPhone = '';
+            } else if (key === 'backspace') {
+                patientPhone = patientPhone.slice(0, -1);
+            } else if (patientPhone.length < 10) {
+                patientPhone += key;
+                playBeep(950, 0.06);
+            }
+            liveTranscript.value = patientPhone;
+            updateDigitBoxes(patientPhone);
+
+            if (patientPhone.length === 10) {
+                updateLCD("10 Digits Done! ", "Creating Token..");
+                playChime();
+                showAutoAdvanceBanner(selectedLang === 'te'
+                    ? `✓ 10 అంకెల మొబైల్ ధృవీకరించబడింది!`
+                    : `✓ 10-Digit Mobile Verified!`);
+                setTimeout(() => {
+                    if (autoAdvanceBanner) autoAdvanceBanner.style.display = 'none';
+                    submitVoiceToken();
+                }, 900);
+            }
+        };
+
+        // -------------------------------------------------------------
+        // Step Timer Countdown (Fast 15 seconds with intelligent recovery)
+        // -------------------------------------------------------------
+        function startStepTimer(onTimeout) {
+            if (stepCountdownTimer) clearInterval(stepCountdownTimer);
+            secondsRemaining = 15;
+            timerBadge.innerText = `⏱️ Time: ${secondsRemaining}s`;
+
+            stepCountdownTimer = setInterval(() => {
+                secondsRemaining--;
+                timerBadge.innerText = `⏱️ Time: ${secondsRemaining}s`;
+
+                // If 7s have passed with silence, display helpful guidance
+                if (secondsRemaining === 7 && !hasSpokenAudio) {
+                    if (micStatusText) {
+                        micStatusText.innerText = selectedLang === 'te'
+                            ? "వాయిస్ వినబడలేదు. దయచేసి గట్టిగా చెప్పండి లేదా కింద ఎంచుకోండి."
+                            : "No voice heard. Speak closer or tap options below.";
+                    }
+                }
+
+                if (secondsRemaining <= 0) {
+                    clearInterval(stepCountdownTimer);
+                    // Check if audio recorder captured sound
+                    stopAudioRecorderAndTranscribe();
+
+                    if (onTimeout) {
+                        onTimeout();
+                    } else {
+                        if (currentVoiceStep === 'NAME') {
+                            if (micStatusText) {
+                                micStatusText.innerText = selectedLang === 'te'
+                                    ? "సమయం ముగిసింది. దయచేసి పేరును కింద ఎంచుకోండి లేదా మళ్ళీ మాట్లాడండి."
+                                    : "Timeout. Tap name below or tap 'Tap to Speak'.";
+                            }
+                        } else if (currentVoiceStep === 'PHONE') {
+                            if (micStatusText) {
+                                micStatusText.innerText = selectedLang === 'te'
+                                    ? "దయచేసి కీప్యాడ్‌లో మీ 10 అంకెల నంబర్ నొక్కండి."
+                                    : "Please tap 10-digit number on keypad.";
+                            }
+                        }
+                    }
+                }
+            }, 1000);
+        }
+
+        // -------------------------------------------------------------
+        // 16x2 LCD Display Helper
+        // -------------------------------------------------------------
+        function formatLCD(text) {
+            let s = text || '';
+            if (s.length > 16) s = s.substring(0, 16);
+            while (s.length < 16) s += ' ';
+            return s;
+        }
+
+        function updateLCD(line0, line1) {
+            lcdRow0.innerText = formatLCD(line0);
+            lcdRow1.innerText = formatLCD(line1);
+        }
+
+        // -------------------------------------------------------------
+        // Language Switching
+        // -------------------------------------------------------------
+        function applyLanguage(lang) {
+            selectedLang = lang;
+            btnChoiceEn.classList.toggle('active', lang === 'en');
+            btnChoiceTe.classList.toggle('active', lang === 'te');
+            if (btnChoiceTa) btnChoiceTa.classList.toggle('active', lang === 'ta');
+
+            if (lang === 'ta') {
+                txtMainBtnTitle.innerText = "டோக்கன் பெற இங்கே அழுத்தவும்";
+                txtMainBtnSub.innerText = "பெயர் மற்றும் மொபைல் எண் பேசவும் (குரல் கியோஸ்க்)";
+                txtBtnNext.innerText = "உறுதி செய்து தொடரவும்";
+                txtBtnSpeakAgain.innerText = "பேச அழுத்தவும்";
+                txtBtnRepeat.innerText = "மீண்டும் கேட்க";
+                txtBtnCancel.innerText = "ரத்து செய்க";
+                txtBoxesTitle.innerText = "10 இலக்க மொபைல் எண்:";
+                if (txtQuickNames) txtQuickNames.innerText = "அல்லது உங்கள் பெயரை தேர்வு செய்யவும்:";
+            } else if (lang === 'te') {
+                txtMainBtnTitle.innerText = "టోకెన్ కోసం ఇక్కడ నొక్కండి";
+                txtMainBtnSub.innerText = "పేరు మరియు మొబైల్ నంబర్ మాట్లాడండి (వాయిస్ కియోస్క్)";
+                txtBtnNext.innerText = "ధృవీకరించండి & కొనసాగించండి";
+                txtBtnSpeakAgain.innerText = "మాట్లాడటానికి నొక్కండి";
+                txtBtnRepeat.innerText = "మళ్ళీ వినండి";
+                txtBtnCancel.innerText = "రద్దు చేయండి";
+                txtBoxesTitle.innerText = "10 అంకెల మొబైల్ నంబర్:";
+                if (txtQuickNames) txtQuickNames.innerText = "లేదా పేరును ఇక్కడ ఎంచుకోండి (Or tap your name):";
+            } else {
+                txtMainBtnTitle.innerText = "PRESS TO GET TOKEN";
+                txtMainBtnSub.innerText = "Just speak your Name & Mobile Number (Voice Kiosk)";
+                txtBtnNext.innerText = "Confirm & Continue";
+                txtBtnSpeakAgain.innerText = "Tap to Speak";
+                txtBtnRepeat.innerText = "Repeat Voice";
+                txtBtnCancel.innerText = "Cancel";
+                txtBoxesTitle.innerText = "Spoken 10-Digit Mobile Number:";
+                if (txtQuickNames) txtQuickNames.innerText = "Or tap your name below:";
+            }
+
+            if (currentVoiceStep === 'NAME') {
+                if (lang === 'ta') {
+                    stepPillIndicator.innerText = 'படி 1 : நோயாளி பெயர்';
+                    voicePromptText.innerText = "தயவுசெய்து உங்கள் பெயரை கூறவும்...";
+                    voiceSubPrompt.innerText = "குரல் அறிவிப்பை கேட்ட பின் மைக்கில் பேசவும்.";
+                    liveTranscript.placeholder = "உங்கள் பெயர் இங்கே தோன்றும் அல்லது தட்டச்சு செய்யவும்...";
+                } else if (lang === 'te') {
+                    stepPillIndicator.innerText = 'దశ 1 : రోగి పేరు';
+                    voicePromptText.innerText = "దయచేసి మీ పేరు చెప్పండి...";
+                    voiceSubPrompt.innerText = "వాయిస్ ప్రాంప్ట్ విన్న తర్వాత మైక్రోఫోన్‌లో పేరు చెప్పండి.";
+                    liveTranscript.placeholder = "మీ పేరు ఇక్కడ వినిపిస్తుంది లేదా టైప్ చేయండి...";
+                } else {
+                    stepPillIndicator.innerText = 'Step 1: Patient Name';
+                    voicePromptText.innerText = "Please tell your name...";
+                    voiceSubPrompt.innerText = "Listen to the voice prompt, then speak your name into the mic.";
+                    liveTranscript.placeholder = "Your name will appear here as you speak...";
+                }
+            } else if (currentVoiceStep === 'PHONE') {
+                if (lang === 'ta') {
+                    stepPillIndicator.innerText = 'படி 2 : மொபைல் எண்';
+                    voicePromptText.innerText = "உங்கள் 10 இலக்க மொபைல் எண்ணை கூறவும்...";
+                    voiceSubPrompt.innerText = "எண்களை பேசவும் அல்லது கீழ் உள்ள கீபேடில் அழுத்தவும்.";
+                    liveTranscript.placeholder = "10 இலக்க எண்ணை கூறவும் அல்லது தட்டவும்...";
+                } else if (lang === 'te') {
+                    stepPillIndicator.innerText = 'దశ 2 : మొబైల్ నంబర్';
+                    voicePromptText.innerText = "మీ 10 అంకెల మొబైల్ నంబర్ చెప్పండి...";
+                    voiceSubPrompt.innerText = "అంకెలు మాట్లాడండి లేదా కింద ఉన్న కీప్యాడ్‌లో నొక్కండి.";
+                    liveTranscript.placeholder = "10 అంకెల మొబైల్ నంబర్ మాట్లాడండి లేదా నొక్కండి...";
+                } else {
+                    stepPillIndicator.innerText = 'Step 2: 10-Digit Mobile';
+                    voicePromptText.innerText = "Please tell your 10-digit mobile number...";
+                    voiceSubPrompt.innerText = "Speak your digits or tap on the keypad below.";
+                    liveTranscript.placeholder = "Speak or tap 10-digit mobile number...";
+                }
+            }
+
+            if (isListeningActive && recognizer) {
+                try {
+                    recognizer.lang = lang === 'ta' ? 'ta-IN' : (lang === 'te' ? 'te-IN' : 'en-IN');
+                } catch (e) {}
+            }
+        }
+
+        btnChoiceEn.addEventListener('click', () => applyLanguage('en'));
+        btnChoiceTe.addEventListener('click', () => applyLanguage('te'));
+        if (btnChoiceTa) btnChoiceTa.addEventListener('click', () => applyLanguage('ta'));
+
+        btnRepeatSpeech.addEventListener('click', () => {
+            if (currentVoiceStep === 'NAME') {
+                const audioId = selectedLang === 'te' ? 'audioNamePromptTe' : 'audioNamePromptEn';
+                playVoiceAudio(audioId, () => startListening());
+            } else if (currentVoiceStep === 'PHONE') {
+                const audioId = selectedLang === 'te' ? 'audioPhonePromptTe' : 'audioPhonePromptEn';
+                playVoiceAudio(audioId, () => startListening());
+            }
+        });
+
+        btnSpeakAgain.addEventListener('click', () => {
+            startListening();
+            startStepTimer();
+        });
+
+        btnCancelVoice.addEventListener('click', () => {
+            resetKioskToIdle();
+        });
+
+        // -------------------------------------------------------------
+        // Method 1: Interactive Voice Flow
+        // -------------------------------------------------------------
+
+        document.getElementById('btnSimGetToken').addEventListener('click', async () => {
+            await requestMicPermission();
+            startVoiceRegistrationFlow();
+        });
+
+        function startVoiceRegistrationFlow() {
+            currentVoiceStep = 'NAME';
+            patientName = '';
+            patientPhone = '';
+
+            // Show Assistant Panel & hide CTA button
+            voiceAssistantPanel.style.display = 'block';
+            patientCtaWrap.style.display = 'none';
+            phoneBoxesContainer.style.display = 'none';
+            touchNumpadWrap.style.display = 'none';
+            if (quickNamesContainer) quickNamesContainer.style.display = 'block';
+            if (autoAdvanceBanner) autoAdvanceBanner.style.display = 'none';
+
+            liveTranscript.value = '';
+            liveTranscript.placeholder = selectedLang === 'te' ? "మీ పేరు ఇక్కడ వినిపిస్తుంది లేదా టైప్ చేయండి..." : "Your name will appear here as you speak...";
+
+            stepPillIndicator.innerText = selectedLang === 'te' ? 'దశ 1 : రోగి పేరు' : 'Step 1: Patient Name';
+            updateLCD("Speak Your Name ", "Listening Mic...");
+
+            // Notify backend of session start
+            fetch('/api/device/voice-session/start', { method: 'POST' }).catch(console.error);
+
+            voicePromptText.innerText = selectedLang === 'te' 
+                ? "దయచేసి మీ పేరు చెప్పండి..." 
+                : "Please tell your name...";
+            voiceSubPrompt.innerText = selectedLang === 'te' 
+                ? "వాయిస్ ప్రాంప్ట్ విన్న తర్వాత మైక్రోఫోన్‌లో పేరు చెప్పండి." 
+                : "Listen to the voice prompt, then speak your name into the mic.";
+
+            playChime();
+            const audioId = selectedLang === 'te' ? 'audioNamePromptTe' : 'audioNamePromptEn';
+            playVoiceAudio(audioId, () => {
+                startListening();
+                startStepTimer();
+            });
+        }
+
+        // When "Confirm & Continue" is clicked
+        btnNextStep.addEventListener('click', () => {
+            if (currentVoiceStep === 'NAME') {
+                const enteredName = liveTranscript.value.trim();
+                if (!enteredName) {
+                    alert(selectedLang === 'te' ? "దయచేసి మీ పేరు చెప్పండి లేదా నమోదు చేయండి!" : "Please tell or enter your name first!");
+                    return;
+                }
+                patientName = enteredName;
+                stopListening();
+                promptForPhone();
+            } else if (currentVoiceStep === 'PHONE') {
+                const rawDigits = liveTranscript.value.replace(/\D/g, '');
+                if (rawDigits.length !== 10) {
+                    alert(selectedLang === 'te' 
+                        ? `దయచేసి పూర్తి 10 అంకెల నంబర్ చెప్పండి (ప్రస్తుతం: ${rawDigits.length} అంకెలు)` 
+                        : `Please provide a valid 10-digit number (currently ${rawDigits.length} digits).`);
+                    return;
+                }
+                patientPhone = rawDigits;
+                stopListening();
+                submitVoiceToken();
+            }
+        });
+
+        // Step 2: Prompt for Mobile Number
+        function promptForPhone() {
+            currentVoiceStep = 'PHONE';
+            stepPillIndicator.innerText = selectedLang === 'te' ? 'దశ 2 : మొబైల్ నంబర్' : 'Step 2: 10-Digit Mobile';
+            phoneBoxesContainer.style.display = 'block';
+            touchNumpadWrap.style.display = 'block';
+            if (quickNamesContainer) quickNamesContainer.style.display = 'none';
+            if (autoAdvanceBanner) autoAdvanceBanner.style.display = 'none';
+            resetDigitBoxes();
+
+            liveTranscript.value = '';
+            liveTranscript.placeholder = selectedLang === 'te' ? "10 అంకెల మొబైల్ నంబర్ మాట్లాడండి లేదా నొక్కండి..." : "Speak or tap 10-digit mobile number...";
+
+            updateLCD(`Name: ${patientName.substring(0, 10)}`, "Speak Mobile No ");
+
+            // Notify backend
+            fetch('/api/device/voice-session/update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ state: 'LISTENING_PHONE', name: patientName })
+            }).catch(console.error);
+
+            voicePromptText.innerText = selectedLang === 'te'
+                ? "మీ 10 అంకెల మొబైల్ నంబర్ చెప్పండి..."
+                : "Please tell your 10-digit mobile number...";
+            voiceSubPrompt.innerText = selectedLang === 'te'
+                ? "అంకెలు మాట్లాడండి లేదా కింద ఉన్న కీప్యాడ్‌లో నొక్కండి."
+                : "Speak your digits or tap on the keypad below.";
+
+            playChime();
+            const audioId = selectedLang === 'te' ? 'audioPhonePromptTe' : 'audioPhonePromptEn';
+            playVoiceAudio(audioId, () => {
+                startListening();
+                startStepTimer();
+            });
+        }
+
+        // Step 3: Submit to Backend & Announce Token
+        async function submitVoiceToken() {
+            currentVoiceStep = 'SUCCESS';
+            stopListening();
+            if (stepCountdownTimer) clearInterval(stepCountdownTimer);
+
+            stepPillIndicator.innerText = selectedLang === 'te' ? 'పూర్తయింది ✓' : 'Success ✓';
+            voicePromptText.innerText = selectedLang === 'te' ? "టోకెన్ రూపొందిస్తున్నాము..." : "Generating Your Token...";
+            voiceSubPrompt.innerText = selectedLang === 'te' ? "దయచేసి వేచి ఉండండి..." : "Please wait a moment...";
+            updateLCD("Creating Token..", "Please Wait...");
+
+            try {
+                const res = await fetch('/api/tokens/voice-kiosk', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: patientName,
+                        phone: patientPhone,
+                        preferred_language: selectedLang,
+                        is_priority: false
+                    })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    playBeep(900, 0.15);
+
+                    // LCD Display
+                    updateLCD(`Token: ${data.token_no}`, `${patientName.substring(0, 16)}`);
+
+                    // Visual success on Assistant
+                    voicePromptText.innerHTML = `Token: <span style="color:#60a5fa; font-size:1.85rem; font-family:var(--font-mono);">${data.token_no}</span>`;
+                    voiceSubPrompt.innerText = `Registered for ${patientName} (${patientPhone})`;
+                    liveTranscript.value = `✓ Queue Position: #${data.position} | Please take a seat`;
+
+                    // Play success voice
+                    const audioId = selectedLang === 'te' ? 'audioTokenSuccessTe' : 'audioTokenSuccessEn';
+                    playVoiceAudio(audioId, () => {
+                        setTimeout(resetKioskToIdle, 5000);
+                    });
+                } else {
+                    alert('Error: ' + data.message);
+                    resetKioskToIdle();
+                }
+            } catch (err) {
+                console.error("Submission error:", err);
+                resetKioskToIdle();
+            }
+        }
+
+        function resetKioskToIdle() {
+            stopListening();
+            if (stepCountdownTimer) clearInterval(stepCountdownTimer);
+
+            currentVoiceStep = 'IDLE';
+            voiceAssistantPanel.style.display = 'none';
+            patientCtaWrap.style.display = 'block';
+            phoneBoxesContainer.style.display = 'none';
+            touchNumpadWrap.style.display = 'none';
+            if (quickNamesContainer) quickNamesContainer.style.display = 'none';
+            if (autoAdvanceBanner) autoAdvanceBanner.style.display = 'none';
+            resetDigitBoxes();
+
+            fetch('/api/device/voice-session/update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ state: 'IDLE' })
+            }).catch(console.error);
+            pollStatus();
+        }
+
+            fetch('/api/device/voice-session/update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ state: 'IDLE' })
+            }).catch(console.error);
+            pollStatus();
+        }
+
+        // -------------------------------------------------------------
+        // Other Button Handlers (REPEAT & HELP)
+        // -------------------------------------------------------------
+        document.getElementById('btnSimRepeat').addEventListener('click', async () => {
+            updateLCD("Repeating Call..", "Speaking token..");
+            try {
+                const res = await fetch('/api/device/repeat', { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    playBeep(900, 0.08);
+                    setTimeout(() => playBeep(900, 0.08), 120);
+                } else {
+                    playBeep(900, 0.1);
+                }
+            } catch (err) {}
+        });
+
+        document.getElementById('btnSimHelp').addEventListener('click', async () => {
+            let count = 0;
+            const t = setInterval(() => {
+                playBeep(1200, 0.12);
+                count++;
+                if (count >= 4) clearInterval(t);
+            }, 180);
+
+            updateLCD("HELP REQUESTED!", "Staff Alerted...");
+            try {
+                await fetch('/api/device/help', { method: 'POST' });
+            } catch (err) {}
+        });
+
+        // -------------------------------------------------------------
+        // Background Status Polling (Sync with Server)
+        // -------------------------------------------------------------
+        async function pollStatus() {
+            if (currentVoiceStep !== 'IDLE') return;
+
+            try {
+                const res = await fetch('/api/device/status');
+                const data = await res.json();
+
+                if (data.success) {
+                    lcdRow0.innerText = formatLCD(data.lcd_line0 || "SmartQ Kiosk");
+                    lcdRow1.innerText = formatLCD(data.lcd_line1 || "Press to Start");
+                }
+            } catch (err) {}
+        }
+
+        pollStatus();
+        setInterval(pollStatus, 3000);
+    </script>
+</body>
+</html>

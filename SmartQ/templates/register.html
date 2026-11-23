@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartQ - Patient Registration | టోకెన్ రిజిస్ట్రేషన్</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet">
+    <style>
+        .input-mic-group {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        .btn-input-mic {
+            background: #1e293b;
+            border: 1px solid #3b82f6;
+            color: #60a5fa;
+            border-radius: 6px;
+            padding: 0.55rem 0.85rem;
+            font-size: 0.85rem;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+        .btn-input-mic:hover {
+            background: #2563eb;
+            color: #ffffff;
+        }
+        .btn-input-mic.listening {
+            background: #ef4444 !important;
+            color: #ffffff !important;
+            animation: pulseMic 1.2s infinite;
+        }
+        @keyframes pulseMic {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.75; transform: scale(1.05); }
+        }
+        .required-star {
+            color: #ef4444;
+            font-weight: 800;
+        }
+    </style>
+</head>
+<body class="register-body">
+
+    <div class="register-card">
+        
+        <!-- Header & Language Switcher -->
+        <div class="register-header">
+            <div class="brand-row">
+                <span class="brand-icon">⚡</span>
+                <span class="brand-title">SmartQ</span>
+            </div>
+            <div class="lang-toggle-btn-wrap">
+                <button type="button" class="btn-lang-toggle active" id="btnLangEn">English</button>
+                <button type="button" class="btn-lang-toggle" id="btnLangTe">తెలుగు</button>
+                <button type="button" class="btn-lang-toggle" id="btnLangTa">தமிழ்</button>
+            </div>
+        </div>
+
+        <!-- FORM CONTAINER (Shown initially) -->
+        <div id="registrationFormContainer">
+            <div style="background:rgba(37,211,102,0.12); border:1px solid rgba(37,211,102,0.35); border-radius:12px; padding:0.65rem 1rem; margin-bottom:1.15rem; display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                <span style="font-size:0.83rem; color:#25D366; font-weight:700;">💬 Prefer WhatsApp? Login via WhatsApp & track live!</span>
+                <a href="/login" style="background:#25D366; color:#04240f; padding:0.38rem 0.85rem; border-radius:8px; font-size:0.8rem; font-weight:800; text-decoration:none; white-space:nowrap;">WhatsApp Login ↗</a>
+            </div>
+            <div class="welcome-box">
+                <h1 id="txtHeading">Get Your Queue Token</h1>
+                <p id="txtSubHeading">Fast registration for patients. Type or tap the 🎤 mic to speak!</p>
+            </div>
+
+            <form id="customerRegForm" class="customer-form">
+                
+                <!-- Patient Name Field (Mandatory) -->
+                <div class="form-group">
+                    <label id="lblCustName">Patient Name <span class="required-star">*</span></label>
+                    <div class="input-mic-group">
+                        <input type="text" id="custName" class="form-control" placeholder="Type or speak full name" required>
+                        <button type="button" class="btn-input-mic" id="btnMicName" title="Speak your name">
+                            🎤 <span class="btn-mic-text">Speak</span>
+                        </button>
+                    </div>
+                    <span class="field-hint" id="txtNameHint">Mandatory for token identification.</span>
+                </div>
+
+                <!-- Mobile Number Field (Mandatory) -->
+                <div class="form-group">
+                    <label id="lblCustPhone">Mobile Number (10 Digits) <span class="required-star">*</span></label>
+                    <div class="input-mic-group">
+                        <input type="tel" id="custPhone" class="form-control" placeholder="10-digit mobile number" maxlength="10" required>
+                        <button type="button" class="btn-input-mic" id="btnMicPhone" title="Speak 10 digits">
+                            🎤 <span class="btn-mic-text">Speak</span>
+                        </button>
+                    </div>
+                    <span class="field-hint" id="txtPhoneHint">Mandatory. 10 digits required for counter calling and updates.</span>
+                </div>
+
+                <!-- Language Selection -->
+                <div class="form-group">
+                    <label id="lblVoiceLang">Announcement Language</label>
+                    <div class="radio-pill-group">
+                        <label class="radio-pill">
+                            <input type="radio" name="prefLang" value="en" checked>
+                            <span>English</span>
+                        </label>
+                        <label class="radio-pill">
+                            <input type="radio" name="prefLang" value="te">
+                            <span>తెలుగు (Telugu)</span>
+                        </label>
+                        <label class="radio-pill">
+                            <input type="radio" name="prefLang" value="ta">
+                            <span>தமிழ் (Tamil)</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Priority Assistance Option -->
+                <div class="priority-accordion">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="custIsPriority">
+                        <span class="checkbox-custom"></span>
+                        <strong id="lblPriorityTitle">Request Priority Assistance</strong>
+                    </label>
+                    <div id="priorityReasonWrap" class="priority-reason-wrap" style="display: none;">
+                        <label id="lblPriorityReason">Reason for Priority:</label>
+                        <select id="custPriorityReason" class="form-select">
+                            <option value="Senior Citizen (60+ years)">Senior Citizen (60+ years)</option>
+                            <option value="Differently Abled / Accessibility Need">Differently Abled / Accessibility Need</option>
+                            <option value="Medical Emergency / Physical Ailment">Medical Emergency / Physical Ailment</option>
+                            <option value="Expectant Mother / Infant Care">Expectant Mother / Infant Care</option>
+                        </select>
+                        <span class="field-hint" id="txtPriorityHint">Subject to service centre policy verification.</span>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-block btn-lg" id="btnSubmitToken">
+                    <span id="txtBtnSubmit">Generate My Token</span>
+                </button>
+            </form>
+        </div>
+
+        <!-- SUCCESS TOKEN DISPLAY CONTAINER (Shown after registration) -->
+        <div id="tokenSuccessContainer" class="token-success-box" style="display: none;">
+            <div class="success-icon-badge">✓</div>
+            <h2 id="txtSuccessTitle">Token Generated Successfully!</h2>
+            <div class="success-token-card">
+                <div class="card-tag" id="txtYourTokenLabel">YOUR TOKEN NUMBER</div>
+                <div class="large-token-no" id="dispTokenNo">A001</div>
+                <div class="token-status-pill" id="dispTokenStatus">WAITING IN QUEUE</div>
+                <div style="margin-top: 8px; font-size: 0.9rem; color: #94a3b8;" id="dispPatientMeta"></div>
+            </div>
+
+            <!-- Live Queue Position Info -->
+            <div class="queue-status-meter">
+                <div class="meter-stat">
+                    <div class="meter-val text-primary" id="dispQueuePos">1</div>
+                    <div class="meter-lbl" id="txtQueuePosLabel">Position in Line</div>
+                </div>
+                <div class="meter-stat">
+                    <div class="meter-val text-accent" id="dispEstWait">~3 mins</div>
+                    <div class="meter-lbl" id="txtEstWaitLabel">Est. Wait Time</div>
+                </div>
+            </div>
+
+            <div class="serving-tracker-box">
+                <div class="serving-header" id="txtServingNowLabel">Currently Serving at Counter:</div>
+                <div class="serving-badge" id="dispCurrentServing">Token ---</div>
+            </div>
+
+            <div class="success-actions">
+                <a id="btnWhatsAppTicket" href="#" target="_blank" class="btn btn-block" style="background:#25D366; color:#ffffff; font-weight:700; text-decoration:none; padding:0.75rem; border-radius:8px; display:flex; align-items:center; justify-content:center; gap:0.5rem; margin-bottom:0.4rem;">
+                    💬 <span id="txtBtnWhatsApp">Receive Ticket on WhatsApp</span>
+                </a>
+                <a id="btnViewTicket" href="#" target="_blank" class="btn btn-outline btn-block">
+                    📄 <span id="txtBtnViewTicket">View / Print Ticket</span>
+                </a>
+                <button type="button" id="btnRegisterAnother" class="btn btn-link btn-block">
+                    + <span id="txtBtnAnother">Get Another Token</span>
+                </button>
+            </div>
+
+            <div class="live-notice">
+                <span class="pulse-dot"></span>
+                <span id="txtLiveNotice">This page updates automatically. Watch the display & listen for your announcement.</span>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Script for Customer Registration & Status Tracking -->
+    <script>
+        const translations = {
+            en: {
+                txtHeading: "Get Your Queue Token",
+                txtSubHeading: "Fast registration for patients. Type or tap the 🎤 mic to speak!",
+                lblCustName: "Patient Name *",
+                lblCustPhone: "Mobile Number (10 Digits) *",
+                txtNameHint: "Mandatory for token identification.",
+                txtPhoneHint: "Mandatory. 10 digits required for counter calling and updates.",
+                lblVoiceLang: "Announcement Language",
+                lblPriorityTitle: "Request Priority Assistance",
+                lblPriorityReason: "Reason for Priority:",
+                txtPriorityHint: "Subject to service centre policy verification.",
+                txtBtnSubmit: "Generate My Token",
+                txtSuccessTitle: "Token Generated Successfully!",
+                txtYourTokenLabel: "YOUR TOKEN NUMBER",
+                txtQueuePosLabel: "Position in Line",
+                txtEstWaitLabel: "Est. Wait Time",
+                txtServingNowLabel: "Currently Serving at Counter:",
+                txtBtnViewTicket: "View / Print Ticket",
+                txtBtnAnother: "Get Another Token",
+                txtLiveNotice: "This page updates automatically. Watch the display & listen for your announcement."
+            },
+            te: {
+                txtHeading: "మీ క్యూ టోకెన్ పొందండి",
+                txtSubHeading: "సులభమైన రిజిస్ట్రేషన్. టైప్ చేయండి లేదా 🎤 మైక్ నొక్కి మాట్లాడండి!",
+                lblCustName: "రోగి పేరు *",
+                lblCustPhone: "మొబైల్ నంబర్ (10 అంకెలు) *",
+                txtNameHint: "టోకెన్ కోసం పేరు తప్పనిసరి.",
+                txtPhoneHint: "తప్పనిసరి. కౌంటర్ పిలుపు కోసం 10 అంకెల మొబైల్ నంబర్.",
+                lblVoiceLang: "ప్రకటన భాష",
+                lblPriorityTitle: "ప్రాధాన్యత సహాయం అభ్యర్థించండి",
+                lblPriorityReason: "ప్రాధాన్యత కారణం:",
+                txtPriorityHint: "కేంద్ర నిబంధనలకు అనుగుణంగా వర్తిస్తుంది.",
+                txtBtnSubmit: "నా టోకెన్ రూపొందించండి",
+                txtSuccessTitle: "టోకెన్ విజయవంతంగా రూపొందించబడింది!",
+                txtYourTokenLabel: "మీ టోకెన్ సంఖ్య",
+                txtQueuePosLabel: "క్యూలో స్థానం",
+                txtEstWaitLabel: "అంచనా సమయం",
+                txtServingNowLabel: "కౌంటర్‌లో ప్రస్తుతం సేవలందిస్తున్నది:",
+                txtBtnViewTicket: "టికెట్ చూడండి / ప్రింట్ చేయండి",
+                txtBtnAnother: "మరొక టోకెన్ తీసుకోండి",
+                txtLiveNotice: "ఈ పేజీ స్వయంచాలకంగా నవీకరించబడుతుంది. డిస్‌ప్లేను గమనించండి మరియు ప్రకటన వినండి."
+            },
+            ta: {
+                txtHeading: "உங்கள் வரிசை டோக்கனைப் பெறுங்கள்",
+                txtSubHeading: "எளிய பதிவு. தட்டச்சு செய்யவும் அல்லது 🎤 மைக் அழுத்தி பேசவும்!",
+                lblCustName: "நோயாளி பெயர் *",
+                lblCustPhone: "மொபைல் எண் (10 இலக்கங்கள்) *",
+                txtNameHint: "டோக்கன் உருவாக்க பெயர் கட்டாயம்.",
+                txtPhoneHint: "கட்டாயம். கவுண்டர் அழைப்பு மற்றும் அறிவிப்புகளுக்கு 10 இலக்கங்கள் தேவை.",
+                lblVoiceLang: "அறிவிப்பு மொழி",
+                lblPriorityTitle: "முன்னுரிமை உதவி கோரவும்",
+                lblPriorityReason: "முன்னுரிமை காரணம்:",
+                txtPriorityHint: "விதிகளுக்கு உட்பட்டு முன்னுரிமை வழங்கப்படும்.",
+                txtBtnSubmit: "டோக்கன் பெறுக",
+                txtSuccessTitle: "டோக்கன் வெற்றிகரமாக உருவாக்கப்பட்டது!",
+                txtYourTokenLabel: "உங்கள் டோக்கன் எண்",
+                txtQueuePosLabel: "வரிசை நிலை",
+                txtEstWaitLabel: "தோராய நேரம்",
+                txtServingNowLabel: "கவுண்டரில் தற்போதைய டோக்கன்:",
+                txtBtnViewTicket: "டிக்கெட் பார்க்க / அச்சிடுக",
+                txtBtnAnother: "மற்றொரு டோக்கன் எடுக்கவும்",
+                txtLiveNotice: "இந்த பக்கம் தானாகவே புதுப்பிக்கப்படும். திரையை கவனிக்கவும்."
+            }
+        };
+
+        let currentLang = 'en';
+        let registeredTokenNo = null;
+        let pollTimer = null;
+
+        const btnLangEn = document.getElementById('btnLangEn');
+        const btnLangTe = document.getElementById('btnLangTe');
+        const btnLangTa = document.getElementById('btnLangTa');
+        const custIsPriority = document.getElementById('custIsPriority');
+        const priorityReasonWrap = document.getElementById('priorityReasonWrap');
+        const customerRegForm = document.getElementById('customerRegForm');
+        const custNameInput = document.getElementById('custName');
+        const custPhoneInput = document.getElementById('custPhone');
+        const btnMicName = document.getElementById('btnMicName');
+        const btnMicPhone = document.getElementById('btnMicPhone');
+
+        function setLanguage(lang) {
+            currentLang = lang;
+            btnLangEn.classList.toggle('active', lang === 'en');
+            btnLangTe.classList.toggle('active', lang === 'te');
+            if (btnLangTa) btnLangTa.classList.toggle('active', lang === 'ta');
+            
+            const radio = document.querySelector(`input[name="prefLang"][value="${lang}"]`);
+            if (radio) radio.checked = true;
+
+            const t = translations[lang];
+            for (let id in t) {
+                const el = document.getElementById(id);
+                if (el) el.innerText = t[id];
+            }
+        }
+
+        btnLangEn.addEventListener('click', () => setLanguage('en'));
+        btnLangTe.addEventListener('click', () => setLanguage('te'));
+        if (btnLangTa) btnLangTa.addEventListener('click', () => setLanguage('ta'));
+
+        custIsPriority.addEventListener('change', () => {
+            priorityReasonWrap.style.display = custIsPriority.checked ? 'block' : 'none';
+        });
+
+        // -------------------------------------------------------------
+        // Speech Recognition for Input Fields (Voice Typing)
+        // -------------------------------------------------------------
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+        function startFieldSpeech(targetInput, micBtn, isDigitsOnly = false) {
+            if (!SpeechRecognition) {
+                alert("Speech recognition is not supported in this browser. Please type manually.");
+                return;
+            }
+
+            const recognizer = new SpeechRecognition();
+            recognizer.continuous = false;
+            recognizer.interimResults = false;
+            recognizer.lang = currentLang === 'ta' ? 'ta-IN' : (currentLang === 'te' ? 'te-IN' : 'en-IN');
+
+            micBtn.classList.add('listening');
+
+            recognizer.onresult = (e) => {
+                let text = e.results[0][0].transcript.trim();
+                if (isDigitsOnly) {
+                    // Extract digits
+                    text = text.replace(/\D/g, '');
+                    if (text.length > 10) text = text.substring(0, 10);
+                }
+                targetInput.value = text;
+            };
+
+            recognizer.onerror = () => {
+                micBtn.classList.remove('listening');
+            };
+
+            recognizer.onend = () => {
+                micBtn.classList.remove('listening');
+            };
+
+            recognizer.start();
+        }
+
+        btnMicName.addEventListener('click', () => startFieldSpeech(custNameInput, btnMicName, false));
+        btnMicPhone.addEventListener('click', () => startFieldSpeech(custPhoneInput, btnMicPhone, true));
+
+        // Form Submit
+        customerRegForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const name = custNameInput.value.trim();
+            const rawPhone = custPhoneInput.value.replace(/\D/g, '');
+
+            if (!name) {
+                alert(currentLang === 'te' ? 'దయచేసి రోగి పేరు నమోదు చేయండి' : 'Patient Name is mandatory!');
+                custNameInput.focus();
+                return;
+            }
+
+            if (rawPhone.length !== 10) {
+                alert(currentLang === 'te' ? 'దయచేసి 10 అంకెల మొబైల్ నంబర్ నమోదు చేయండి' : 'A valid 10-digit mobile number is mandatory!');
+                custPhoneInput.focus();
+                return;
+            }
+
+            const btn = document.getElementById('btnSubmitToken');
+            btn.disabled = true;
+            btn.innerText = "Generating...";
+
+            const payload = {
+                name: name,
+                phone: rawPhone,
+                preferred_language: document.querySelector('input[name="prefLang"]:checked').value,
+                is_priority: custIsPriority.checked,
+                priority_reason: custIsPriority.checked ? document.getElementById('custPriorityReason').value : ''
+            };
+
+            try {
+                const res = await fetch('/api/tokens/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    registeredTokenNo = data.token_no;
+                    showTokenSuccess(data, name, rawPhone);
+                    startTracking(registeredTokenNo);
+                } else {
+                    alert('Error: ' + (data.message || 'Could not create token'));
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Connection error. Please try again.');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = translations[currentLang].txtBtnSubmit;
+            }
+        });
+
+        function showTokenSuccess(data, name, phone) {
+            document.getElementById('registrationFormContainer').style.display = 'none';
+            document.getElementById('tokenSuccessContainer').style.display = 'block';
+
+            document.getElementById('dispTokenNo').innerText = data.token_no;
+            document.getElementById('dispPatientMeta').innerText = `Patient: ${name} | Phone: ${phone}`;
+            document.getElementById('dispQueuePos').innerText = data.position;
+            document.getElementById('dispEstWait').innerText = `~${data.position * 3} mins`;
+            document.getElementById('btnViewTicket').href = data.ticket_url;
+            document.getElementById('btnWhatsAppTicket').href = data.whatsapp_link || (`https://wa.me/91${phone}?text=SmartQ%20Token%20${data.token_no}`);
+        }
+
+        async function updateStatus() {
+            if (!registeredTokenNo) return;
+            try {
+                const res = await fetch(`/api/tokens/${registeredTokenNo}/status`);
+                const data = await res.json();
+                if (data.success) {
+                    const token = data.token;
+                    const statusPill = document.getElementById('dispTokenStatus');
+                    
+                    if (token.status === 'CALLED') {
+                        statusPill.innerText = 'NOW SERVING! PLEASE PROCEED';
+                        statusPill.className = 'token-status-pill called-pulse';
+                    } else if (token.status === 'COMPLETED') {
+                        statusPill.innerText = 'SERVICE COMPLETED';
+                        statusPill.className = 'token-status-pill completed';
+                    } else if (token.status === 'SKIPPED') {
+                        statusPill.innerText = 'CALL SKIPPED';
+                        statusPill.className = 'token-status-pill skipped';
+                    } else {
+                        statusPill.innerText = 'WAITING IN QUEUE';
+                        statusPill.className = 'token-status-pill';
+                    }
+
+                    document.getElementById('dispQueuePos').innerText = data.people_ahead + 1;
+                    document.getElementById('dispEstWait').innerText = `~${data.estimated_wait_mins} mins`;
+
+                    if (data.current_serving) {
+                        document.getElementById('dispCurrentServing').innerText = 
+                            `${data.current_serving.token_no} (${data.current_serving.counter})`;
+                    } else {
+                        document.getElementById('dispCurrentServing').innerText = 'None';
+                    }
+                }
+            } catch (err) {
+                console.error("Status poll error:", err);
+            }
+        }
+
+        function startTracking(tokenNo) {
+            if (pollTimer) clearInterval(pollTimer);
+            updateStatus();
+            pollTimer = setInterval(updateStatus, 4000);
+        }
+
+        document.getElementById('btnRegisterAnother').addEventListener('click', () => {
+            if (pollTimer) clearInterval(pollTimer);
+            registeredTokenNo = null;
+            customerRegForm.reset();
+            priorityReasonWrap.style.display = 'none';
+            document.getElementById('registrationFormContainer').style.display = 'block';
+            document.getElementById('tokenSuccessContainer').style.display = 'none';
+        });
+    </script>
+</body>
+</html>

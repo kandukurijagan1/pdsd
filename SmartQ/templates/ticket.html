@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Token Ticket - {{ token.token_no }}</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@700;800&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="ticket-page-body">
+
+    <div class="ticket-actions-bar no-print">
+        <button class="btn btn-primary" onclick="window.print()">🖨️ Print Ticket</button>
+        <a id="btnShareWhatsApp" href="https://wa.me/?text=SmartQ%20Token%20Ticket%20{{ token.token_no }}%20for%20{{ token.name or 'Patient' }}%20-%20Counter%201" target="_blank" class="btn" style="background:#25D366; color:#ffffff; font-weight:700; text-decoration:none; padding:0.65rem 1.2rem; border-radius:8px; display:inline-flex; align-items:center; gap:0.4rem;">
+            💬 Send to WhatsApp
+        </a>
+        <button class="btn btn-outline" onclick="window.close()">✕ Close</button>
+    </div>
+
+    <div class="ticket-slip">
+        
+        <!-- Header -->
+        <div class="ticket-header">
+            <div class="ticket-logo">⚡ SmartQ</div>
+            <div class="ticket-org">{{ org_name }}</div>
+            <div class="ticket-counter">{{ counter }}</div>
+        </div>
+
+        <div class="ticket-divider">--------------------------------</div>
+
+        <!-- Token Number Display -->
+        <div class="ticket-token-section">
+            <div class="ticket-label">YOUR TOKEN NUMBER</div>
+            <div class="ticket-token-number">{{ token.token_no }}</div>
+            {% if token.is_priority %}
+            <div class="ticket-priority-badge">★ PRIORITY CUSTOMER ★</div>
+            {% endif %}
+        </div>
+
+        <div class="ticket-divider">--------------------------------</div>
+
+        <!-- Details -->
+        <div class="ticket-meta">
+            <div class="meta-line">
+                <span class="meta-k">Date & Time:</span>
+                <span class="meta-v">{{ token.created_at }}</span>
+            </div>
+            <div class="meta-line">
+                <span class="meta-k">Customer:</span>
+                <span class="meta-v">{{ token.name or 'Walk-in' }}</span>
+            </div>
+            <div class="meta-line">
+                <span class="meta-k">Language:</span>
+                <span class="meta-v">{{ 'Telugu (తెలుగు)' if token.preferred_language == 'te' else ('Tamil (தமிழ்)' if token.preferred_language == 'ta' else 'English') }}</span>
+            </div>
+            <div class="meta-line">
+                <span class="meta-k">Waiting Ahead:</span>
+                <span class="meta-v"><strong>{{ ahead }} customers</strong></span>
+            </div>
+            <div class="meta-line">
+                <span class="meta-k">Est. Wait:</span>
+                <span class="meta-v">~{{ (ahead + 1) * 3 }} minutes</span>
+            </div>
+        </div>
+
+        <div class="ticket-divider">--------------------------------</div>
+
+        <!-- QR Code for mobile status tracking -->
+        <div class="ticket-qr-section">
+            <img src="/api/qr/token/{{ token.token_no }}" alt="Scan to track" class="ticket-qr-img">
+            <div class="ticket-qr-note">Scan with phone to track your turn live (or view prescription after completion)</div>
+            <div style="font-family: monospace; font-size: 0.75rem; color: #64748b; margin-top: 4px;">/track/{{ token.token_no }}</div>
+        </div>
+
+        <!-- Instructions Footer -->
+        <div class="ticket-footer">
+            <p>Please watch the counter display & listen for your token announcement.</p>
+            <div class="ticket-subnote">Principles of Digital Systems & Design</div>
+        </div>
+
+    </div>
+
+    <script>
+        // Auto trigger print if URL has ?autoprint=1
+        if (new URLSearchParams(window.location.search).get('autoprint') === '1') {
+            window.addEventListener('load', () => {
+                setTimeout(() => window.print(), 500);
+            });
+        }
+    </script>
+</body>
+</html>

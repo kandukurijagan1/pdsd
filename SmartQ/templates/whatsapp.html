@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartQ - Free Local WhatsApp Automation Hub</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body.wa-hub-body {
+            background: linear-gradient(135deg, #070e17 0%, #0a1826 40%, #081a16 100%);
+            color: #f8fafc;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            margin: 0;
+            padding: 1.5rem;
+            min-height: 100vh;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .hub-container {
+            width: 100%;
+            max-width: 840px;
+        }
+
+        .hub-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #1e293b;
+        }
+
+        .brand-title-wrap {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .wa-logo-badge {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            box-shadow: 0 8px 20px rgba(37, 211, 102, 0.3);
+        }
+
+        .hub-title {
+            font-size: 1.4rem;
+            font-weight: 800;
+            margin: 0;
+            color: #ffffff;
+            letter-spacing: -0.5px;
+        }
+
+        .hub-subtitle {
+            font-size: 0.82rem;
+            color: #94a3b8;
+            margin-top: 2px;
+        }
+
+        .nav-links-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .nav-pill {
+            background: #0f172a;
+            border: 1px solid #334155;
+            color: #cbd5e1;
+            padding: 0.5rem 0.85rem;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .nav-pill:hover {
+            border-color: #38bdf8;
+            color: #38bdf8;
+        }
+
+        /* Main Card */
+        .hub-card {
+            background: #0d1624;
+            border: 1px solid #1e293b;
+            border-radius: 20px;
+            padding: 1.75rem;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+            margin-bottom: 1.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hub-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #25D366 0%, #128C7E 50%, #38bdf8 100%);
+        }
+
+        .status-strip {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #080f1a;
+            border: 1px solid #1e293b;
+            border-radius: 12px;
+            padding: 0.85rem 1.15rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 0.35rem 0.85rem;
+            border-radius: 999px;
+            font-size: 0.82rem;
+            font-weight: 800;
+        }
+
+        .status-badge.scanning {
+            background: rgba(245, 158, 11, 0.15);
+            border: 1px solid #f59e0b;
+            color: #fbbf24;
+        }
+
+        .status-badge.connected {
+            background: rgba(37, 211, 102, 0.15);
+            border: 1px solid #25D366;
+            color: #25D366;
+        }
+
+        /* QR Scanner Section */
+        .qr-hero-section {
+            text-align: center;
+            padding: 1rem 0;
+        }
+
+        .qr-code-box {
+            background: #ffffff;
+            border: 4px solid #25D366;
+            border-radius: 20px;
+            padding: 12px;
+            display: inline-block;
+            box-shadow: 0 12px 30px rgba(37, 211, 102, 0.25);
+            margin: 0.85rem 0;
+            position: relative;
+        }
+
+        .qr-code-box img {
+            width: 240px;
+            height: 240px;
+            display: block;
+            border-radius: 10px;
+        }
+
+        .btn-refresh-qr {
+            background: #0f172a;
+            border: 1px solid #334155;
+            color: #94a3b8;
+            padding: 0.45rem 0.95rem;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-refresh-qr:hover {
+            border-color: #25D366;
+            color: #25D366;
+        }
+
+        .instructions-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+            margin-top: 1.5rem;
+            text-align: left;
+        }
+
+        .step-card {
+            background: #080f1a;
+            border: 1px solid #1e293b;
+            border-radius: 12px;
+            padding: 0.95rem;
+        }
+
+        .step-num {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #25D366;
+            color: #04240f;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 0.8rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .step-title {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 2px;
+        }
+
+        .step-desc {
+            font-size: 0.78rem;
+            color: #94a3b8;
+            line-height: 1.4;
+        }
+
+        /* Connected View */
+        .connected-hero-section {
+            display: none;
+            text-align: center;
+            padding: 1rem 0;
+        }
+
+        .connected-icon {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: rgba(37, 211, 102, 0.15);
+            border: 2px solid #25D366;
+            color: #25D366;
+            font-size: 2.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem;
+            box-shadow: 0 0 30px rgba(37, 211, 102, 0.3);
+        }
+
+        .stats-grid-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+            margin: 1.25rem 0;
+        }
+
+        .stat-card-box {
+            background: #080f1a;
+            border: 1px solid #1e293b;
+            border-radius: 12px;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .stat-val {
+            font-size: 1.6rem;
+            font-weight: 800;
+            font-family: 'JetBrains Mono', monospace;
+            color: #25D366;
+        }
+
+        .stat-lbl {
+            font-size: 0.75rem;
+            color: #94a3b8;
+            margin-top: 3px;
+        }
+
+        /* Test Sender Box */
+        .test-sender-box {
+            background: #080f1a;
+            border: 1px solid #1e293b;
+            border-radius: 14px;
+            padding: 1.15rem;
+            margin-top: 1.25rem;
+            text-align: left;
+        }
+
+        .form-row-test {
+            display: flex;
+            gap: 10px;
+            margin-top: 0.65rem;
+        }
+
+        .input-test {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 10px;
+            padding: 0.65rem 0.85rem;
+            color: #ffffff;
+            font-family: inherit;
+            font-size: 0.9rem;
+            outline: none;
+        }
+
+        .btn-send-test {
+            background: #25D366;
+            color: #04240f;
+            border: none;
+            border-radius: 10px;
+            padding: 0.65rem 1.25rem;
+            font-weight: 800;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+
+        .btn-send-test:hover {
+            background: #1eb857;
+        }
+
+        /* Live Activity Console */
+        .console-card {
+            background: #080f1a;
+            border: 1px solid #1e293b;
+            border-radius: 16px;
+            padding: 1.25rem;
+        }
+
+        .console-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+
+        .console-title {
+            font-size: 0.85rem;
+            font-weight: 800;
+            color: #cbd5e1;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .console-stream {
+            background: #040810;
+            border: 1px solid #152238;
+            border-radius: 10px;
+            padding: 0.85rem;
+            height: 180px;
+            overflow-y: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.78rem;
+            line-height: 1.6;
+            color: #94a3b8;
+        }
+
+        .log-entry {
+            margin-bottom: 4px;
+        }
+
+        .log-entry.success { color: #34d399; }
+        .log-entry.warn { color: #fbbf24; }
+        .log-entry.error { color: #f87171; }
+    </style>
+</head>
+<body class="wa-hub-body">
+
+    <div class="hub-container">
+
+        <!-- Top Header Navigation -->
+        <header class="hub-header">
+            <div class="brand-title-wrap">
+                <div class="wa-logo-badge">💬</div>
+                <div>
+                    <h1 class="hub-title">SmartQ Local WhatsApp Hub</h1>
+                    <div class="hub-subtitle">{{ org_name }} • Free Background Automation Sender</div>
+                </div>
+            </div>
+            <div class="nav-links-row">
+                <a href="/" target="_blank" class="nav-pill">📊 Staff Dashboard</a>
+                <a href="/kiosk" target="_blank" class="nav-pill">🖥️ Voice Kiosk</a>
+                <a href="/register" target="_blank" class="nav-pill">📱 Register</a>
+            </div>
+        </header>
+
+        <!-- Main Card -->
+        <div class="hub-card">
+
+            <!-- Live Status Strip -->
+            <div class="status-strip">
+                <div>
+                    <span style="font-size:0.85rem; font-weight:700; color:#cbd5e1;">Automation Status:</span>
+                    <span style="font-size:0.8rem; color:#94a3b8; margin-left:6px;">Auto-dispatch on patient registration</span>
+                </div>
+                <div id="waStatusBadge" class="status-badge scanning">
+                    <span>🟡</span>
+                    <span id="waStatusText">Scan QR with WhatsApp</span>
+                </div>
+            </div>
+
+            <!-- ======================================================== -->
+            <!-- 1. UNLINKED STATE: LIVE WHATSAPP WEB QR CODE SCAN        -->
+            <!-- ======================================================== -->
+            <div id="sectionScanQr" class="qr-hero-section">
+                <div style="font-size:1.15rem; font-weight:800; color:#ffffff;">
+                    Scan QR Code to Link Local WhatsApp
+                </div>
+                <div style="font-size:0.85rem; color:#94a3b8; margin-top:4px;">
+                    Link your phone once. SmartQ will automatically send instant token confirmations from your WhatsApp account!
+                </div>
+
+                <div class="qr-code-box">
+                    <img id="waQrImage" src="/api/whatsapp/web/qr.png" alt="WhatsApp Web QR Code">
+                </div>
+
+                <div>
+                    <button type="button" class="btn-refresh-qr" onclick="refreshQrImage()">
+                        ↻ Refresh QR Code
+                    </button>
+                    <span style="font-size:0.75rem; color:#64748b; margin-left:8px;" id="qrTimerLabel">Auto-refreshes every 5s</span>
+                </div>
+
+                <!-- 3-Step Guide -->
+                <div class="instructions-grid">
+                    <div class="step-card">
+                        <div class="step-num">1</div>
+                        <div class="step-title">Open WhatsApp</div>
+                        <div class="step-desc">Open WhatsApp on your Android phone or iPhone.</div>
+                    </div>
+                    <div class="step-card">
+                        <div class="step-num">2</div>
+                        <div class="step-title">Linked Devices</div>
+                        <div class="step-desc">Tap <strong>Settings</strong> (iOS) or <strong>⋮ Menu</strong> (Android) &gt; <strong>Linked Devices</strong>.</div>
+                    </div>
+                    <div class="step-card">
+                        <div class="step-num">3</div>
+                        <div class="step-title">Scan Code</div>
+                        <div class="step-desc">Tap <strong>Link a device</strong> and scan the QR code above.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ======================================================== -->
+            <!-- 2. CONNECTED STATE: AUTOMATED DISPATCH ACTIVE            -->
+            <!-- ======================================================== -->
+            <div id="sectionConnected" class="connected-hero-section">
+                <div class="connected-icon">✓</div>
+                <div style="display:inline-block; background:rgba(56,189,248,0.12); border:1px solid #38bdf8; color:#38bdf8; padding:4px 14px; border-radius:999px; font-size:0.8rem; font-weight:700; margin-bottom:0.75rem;" id="providerLabel">
+                    ⚡ Connected to Local WhatsApp Microservice (Port 3005)
+                </div>
+                <h2 style="font-size:1.4rem; font-weight:800; color:#25D366; margin:0 0 6px;" id="connectedHeaderTitle">
+                    WhatsApp Authenticated & Ready!
+                </h2>
+                <p style="font-size:0.88rem; color:#cbd5e1; max-width:540px; margin:0 auto; line-height:1.5;">
+                    Sender linked: <strong id="senderAccountDisplay" style="color:#ffffff;">K.K (+91 8367047947)</strong>.<br>
+                    Whenever any patient registers (via Voice Kiosk, Entrance QR, or Mobile), they will <strong>instantly receive automated token confirmations directly from this WhatsApp account!</strong>
+                </p>
+
+                <!-- Stats -->
+                <div class="stats-grid-row">
+                    <div class="stat-card-box">
+                        <div class="stat-val" id="statSentCount">0</div>
+                        <div class="stat-lbl">Messages Delivered</div>
+                    </div>
+                    <div class="stat-card-box">
+                        <div class="stat-val" id="statQueueSize">0</div>
+                        <div class="stat-lbl">Queue Pending</div>
+                    </div>
+                    <div class="stat-card-box">
+                        <div class="stat-val" style="color:#38bdf8;">ACTIVE</div>
+                        <div class="stat-lbl">Automation Engine</div>
+                    </div>
+                </div>
+
+                <!-- Quick Test Sender -->
+                <div class="test-sender-box">
+                    <div style="font-size:0.85rem; font-weight:700; color:#cbd5e1;">
+                        🧪 Send an Instant Test WhatsApp Message:
+                    </div>
+                    <div style="font-size:0.78rem; color:#94a3b8; margin-top:2px;">
+                        Verify that messages are sent live directly from your linked account.
+                    </div>
+                    <div class="form-row-test">
+                        <input type="tel" id="testPhone" class="input-test" placeholder="10-digit mobile" maxlength="10" style="width:140px;">
+                        <input type="text" id="testMessage" class="input-test" value="🏥 Hello from SmartQ! Your queue token automation is active." style="flex:1;">
+                        <button type="button" class="btn-send-test" id="btnTestSend" onclick="handleSendTest()">
+                            Send Test Message
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Live Activity Console -->
+        <div class="console-card">
+            <div class="console-header">
+                <div class="console-title">
+                    <span>⚡</span>
+                    <span>Live Automation Console & Activity Stream</span>
+                </div>
+                <span style="font-size:0.75rem; color:#34d399;">● Real-time stream</span>
+            </div>
+            <div class="console-stream" id="consoleStream">
+                <div class="log-entry">[System] Connecting to local WhatsApp Web automation worker...</div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        let pollTimer = null;
+        let isConnected = false;
+
+        async function fetchStatus() {
+            try {
+                const res = await fetch('/api/whatsapp/web/status');
+                const data = await res.json();
+
+                const statusBadge = document.getElementById('waStatusBadge');
+                const statusText = document.getElementById('waStatusText');
+                const sectionScanQr = document.getElementById('sectionScanQr');
+                const sectionConnected = document.getElementById('sectionConnected');
+
+                if (data.connected) {
+                    isConnected = true;
+                    statusBadge.className = 'status-badge connected';
+                    const senderName = (data.user && data.user.name) ? `${data.user.name} (+${data.user.phone})` : 'Linked WhatsApp Sender';
+                    statusText.innerText = `🟢 WhatsApp Active: ${senderName}`;
+                    sectionScanQr.style.display = 'none';
+                    sectionConnected.style.display = 'block';
+
+                    if (data.provider) {
+                        const pLbl = document.getElementById('providerLabel');
+                        if (pLbl) pLbl.innerText = `⚡ ${data.provider}`;
+                    }
+                    if (data.user) {
+                        const sDisp = document.getElementById('senderAccountDisplay');
+                        if (sDisp) sDisp.innerText = `${data.user.name || 'Staff'} (+${data.user.phone || ''})`;
+                    }
+
+                    document.getElementById('statSentCount').innerText = data.sent_count || 0;
+                    document.getElementById('statQueueSize').innerText = data.queue_size || 0;
+                } else {
+                    isConnected = false;
+                    statusBadge.className = 'status-badge scanning';
+                    statusText.innerText = data.status === 'SCAN_QR' ? '🟡 Scan QR with WhatsApp' : 'Starting Worker...';
+                    sectionScanQr.style.display = 'block';
+                    sectionConnected.style.display = 'none';
+                }
+
+                // Render Logs in Activity Stream
+                if (data.logs && data.logs.length > 0) {
+                    const consoleEl = document.getElementById('consoleStream');
+                    consoleEl.innerHTML = data.logs.map(log => {
+                        let cls = 'log-entry';
+                        if (log.includes('DELIVERED') || log.includes('Logged In')) cls += ' success';
+                        else if (log.includes('⚠️') || log.includes('Timeout')) cls += ' warn';
+                        else if (log.includes('❌') || log.includes('Error')) cls += ' error';
+                        return `<div class="${cls}">${log}</div>`;
+                    }).join('');
+                    consoleEl.scrollTop = consoleEl.scrollHeight;
+                }
+
+            } catch (err) {
+                console.error('Status fetch error:', err);
+            }
+        }
+
+        function refreshQrImage() {
+            if (!isConnected) {
+                document.getElementById('waQrImage').src = '/api/whatsapp/web/qr.png?t=' + Date.now();
+            }
+        }
+
+        async function handleSendTest() {
+            const btn = document.getElementById('btnTestSend');
+            const phone = document.getElementById('testPhone').value.trim();
+            const message = document.getElementById('testMessage').value.trim();
+
+            if (phone.length !== 10) {
+                alert('Please enter a valid 10-digit phone number.');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerText = 'Dispatching...';
+
+            try {
+                const res = await fetch('/api/whatsapp/web/send-test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phone, message })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert(`Message queued! WhatsApp Web is dispatching it directly to +91${phone}.`);
+                } else {
+                    alert('Failed to dispatch test message.');
+                }
+            } catch (err) {
+                alert('Request failed. Check network.');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Send Test Message';
+            }
+        }
+
+        // Start worker on page load
+        fetch('/api/whatsapp/web/start', { method: 'POST' });
+
+        // Initial fetch & refresh
+        fetchStatus();
+        refreshQrImage();
+
+        // Poll status every 2 seconds
+        setInterval(fetchStatus, 2000);
+
+        // Auto-refresh QR code every 5 seconds if not connected
+        setInterval(() => {
+            if (!isConnected) {
+                refreshQrImage();
+            }
+        }, 5000);
+    </script>
+</body>
+</html>

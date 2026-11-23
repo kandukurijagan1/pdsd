@@ -1,0 +1,29 @@
+# Python Environment & Cache
+venv/
+env/
+.venv/
+*/venv/
+*/env/
+*/.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*/__pycache__/
+
+# WhatsApp Web Session & Browser Profiles
+.whatsapp_web_profile/
+*/.whatsapp_web_profile/
+*.session
+*.session-journal
+
+# Secrets & Environment Overrides
+.env
+*/.env
+
+# System & Editor files
+.vscode/
+.idea/
+*.log
+.DS_Store
+Thumbs.db
+desktop.ini

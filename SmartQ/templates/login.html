@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartQ - Fast Entrance Login & Token Pass</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body.login-body {
+            background: linear-gradient(135deg, #060b14 0%, #0c1829 50%, #071a17 100%);
+            color: #f8fafc;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            margin: 0;
+            padding: 1.25rem;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-sizing: border-box;
+        }
+
+        .login-card {
+            background: #111b2b;
+            border: 1px solid #1e293b;
+            border-radius: 24px;
+            padding: 2.25rem 1.85rem;
+            width: 100%;
+            max-width: 460px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 40px rgba(37, 211, 102, 0.08);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .login-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #25D366 0%, #128C7E 50%, #38bdf8 100%);
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .brand-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            background: rgba(37, 211, 102, 0.12);
+            border: 1px solid rgba(37, 211, 102, 0.4);
+            color: #25D366;
+            padding: 0.35rem 0.95rem;
+            border-radius: 9999px;
+            font-size: 0.82rem;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.75rem;
+            text-transform: uppercase;
+        }
+
+        .login-title {
+            font-size: 1.6rem;
+            font-weight: 800;
+            color: #ffffff;
+            margin: 0 0 0.35rem;
+            letter-spacing: -0.5px;
+        }
+
+        .login-sub {
+            font-size: 0.88rem;
+            color: #94a3b8;
+            line-height: 1.4;
+        }
+
+        /* Form Controls */
+        .form-group {
+            margin-bottom: 1.15rem;
+        }
+
+        .form-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #cbd5e1;
+            margin-bottom: 0.45rem;
+        }
+
+        .required-tag {
+            color: #ef4444;
+            font-size: 0.75rem;
+        }
+
+        .form-input {
+            width: 100%;
+            background: #09101d;
+            border: 1.5px solid #283548;
+            border-radius: 12px;
+            padding: 0.85rem 1rem;
+            color: #ffffff;
+            font-size: 1rem;
+            font-family: inherit;
+            box-sizing: border-box;
+            outline: none;
+            transition: all 0.15s;
+        }
+
+        .form-input:focus {
+            border-color: #25D366;
+            box-shadow: 0 0 0 3px rgba(37, 211, 102, 0.2);
+        }
+
+        .phone-input-wrap {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .phone-prefix {
+            position: absolute;
+            left: 12px;
+            font-weight: 700;
+            color: #25D366;
+            font-size: 0.95rem;
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .phone-input-wrap .form-input {
+            padding-left: 62px;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        /* Language Selector Pills */
+        .lang-options-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+            margin-top: 0.35rem;
+        }
+
+        .btn-lang-radio {
+            background: #09101d;
+            border: 1.5px solid #283548;
+            color: #94a3b8;
+            padding: 0.6rem 0.35rem;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 0.82rem;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.15s;
+        }
+
+        .btn-lang-radio.active {
+            background: rgba(37, 211, 102, 0.15);
+            border-color: #25D366;
+            color: #25D366;
+        }
+
+        /* Priority Checkbox */
+        .priority-check-box {
+            background: rgba(245, 158, 11, 0.08);
+            border: 1px solid rgba(245, 158, 11, 0.4);
+            border-radius: 10px;
+            padding: 0.75rem 1rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            margin-top: 0.5rem;
+        }
+
+        .priority-check-box input {
+            width: 18px;
+            height: 18px;
+            accent-color: #f59e0b;
+            cursor: pointer;
+        }
+
+        /* Primary Action Button */
+        .btn-login-submit {
+            width: 100%;
+            background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
+            border: none;
+            border-radius: 12px;
+            padding: 1.1rem;
+            color: #04240f;
+            font-size: 1.1rem;
+            font-weight: 800;
+            cursor: pointer;
+            box-shadow: 0 8px 24px rgba(37, 211, 102, 0.35);
+            margin-top: 1.35rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.15s;
+        }
+
+        .btn-login-submit:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 28px rgba(37, 211, 102, 0.45);
+        }
+
+        .btn-login-submit:active {
+            transform: scale(0.98);
+        }
+
+        .btn-login-submit:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Fast Login Badge */
+        .fast-login-chip {
+            display: none;
+            background: rgba(56, 189, 248, 0.12);
+            border: 1px dashed #38bdf8;
+            border-radius: 10px;
+            padding: 0.6rem 0.95rem;
+            font-size: 0.84rem;
+            color: #7dd3fc;
+            margin-bottom: 1.25rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .fast-login-chip:hover {
+            background: rgba(56, 189, 248, 0.2);
+        }
+
+        .auto-dispatch-notice {
+            background: rgba(37, 211, 102, 0.08);
+            border: 1px solid rgba(37, 211, 102, 0.25);
+            border-radius: 10px;
+            padding: 0.65rem 0.85rem;
+            font-size: 0.8rem;
+            color: #86efac;
+            margin-top: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .login-footer-info {
+            text-align: center;
+            font-size: 0.78rem;
+            color: #64748b;
+            margin-top: 1.5rem;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body class="login-body">
+
+    <div class="login-card">
+
+        <!-- Header -->
+        <div class="login-header">
+            <div class="brand-badge">
+                <span>📱</span>
+                <span>Fast Entrance Pass</span>
+            </div>
+            <h1 class="login-title">SmartQ Entrance Login</h1>
+            <div class="login-sub">{{ org_name }} • Instant Token & WhatsApp Alert</div>
+        </div>
+
+        <!-- Saved Profile Pre-fill Chip -->
+        <div class="fast-login-chip" id="fastLoginChip" onclick="useFastLogin()">
+            ⚡ Welcome back, <strong id="fastUserName">Patient</strong>! Tap here to prefill.
+        </div>
+
+        <!-- 1-Step Instant Registration Form (NO OTP REQUIRED) -->
+        <form id="loginForm" onsubmit="handleLoginSubmit(event)">
+
+            <!-- Patient Name -->
+            <div class="form-group">
+                <div class="form-label">
+                    <span id="lblPatientName">Patient Name / రోగి పేరు / பெயர்</span>
+                    <span class="required-tag">* Mandatory</span>
+                </div>
+                <input type="text" id="patientName" class="form-input" placeholder="e.g. Ramesh Kumar / Murugan" required autocomplete="name">
+            </div>
+
+            <!-- 10-Digit Mobile Number (For WhatsApp Alert) -->
+            <div class="form-group">
+                <div class="form-label">
+                    <span id="lblPatientPhone">Mobile Number / మొబైల్ నంబర్ / மொபைல் எண்</span>
+                    <span class="required-tag">* WhatsApp Alert</span>
+                </div>
+                <div class="phone-input-wrap">
+                    <span class="phone-prefix">🇮🇳 +91</span>
+                    <input type="tel" id="patientPhone" class="form-input" placeholder="9876543210" pattern="[0-9]{10}" maxlength="10" required autocomplete="tel">
+                </div>
+            </div>
+
+            <!-- Language Choice -->
+            <div class="form-group">
+                <div class="form-label">
+                    <span>Preferred Language / భాష / மொழி</span>
+                </div>
+                <div class="lang-options-grid">
+                    <button type="button" class="btn-lang-radio active" id="btnLangEn" onclick="setLang('en')">English</button>
+                    <button type="button" class="btn-lang-radio" id="btnLangTe" onclick="setLang('te')">తెలుగు</button>
+                    <button type="button" class="btn-lang-radio" id="btnLangTa" onclick="setLang('ta')">தமிழ்</button>
+                </div>
+            </div>
+
+            <!-- Priority Care Option -->
+            <label class="priority-check-box">
+                <input type="checkbox" id="chkPriority">
+                <span style="font-size:0.85rem; font-weight:700; color:#fbbf24;">
+                    ★ Priority Care (Senior Citizen / Pregnant / Medical Emergency)
+                </span>
+            </label>
+
+            <!-- One-Click Submit Button -->
+            <button type="submit" class="btn-login-submit" id="btnSubmit">
+                <span>🎟️</span>
+                <span>Get Token Pass & Receive WhatsApp Alerts</span>
+            </button>
+
+            <!-- Instant Delivery Notice -->
+            <div class="auto-dispatch-notice">
+                <span>💬</span>
+                <span>No OTP needed! Your token and live queue tracker link are sent automatically to your WhatsApp.</span>
+            </div>
+
+        </form>
+
+        <div class="login-footer-info">
+            Automated Token Calling & Real-Time WhatsApp Alert System<br>
+            Principles of Digital Systems and Design (PDSD)
+        </div>
+
+    </div>
+
+    <script>
+        let selectedLang = 'en';
+
+        // Check for saved profile in localStorage
+        const savedName = localStorage.getItem('smartq_user_name');
+        const savedPhone = localStorage.getItem('smartq_user_phone');
+        const savedLang = localStorage.getItem('smartq_user_lang');
+
+        if (savedName && savedPhone) {
+            document.getElementById('fastLoginChip').style.display = 'block';
+            document.getElementById('fastUserName').innerText = savedName;
+        }
+
+        function useFastLogin() {
+            if (savedName) document.getElementById('patientName').value = savedName;
+            if (savedPhone) document.getElementById('patientPhone').value = savedPhone;
+            if (savedLang) setLang(savedLang);
+        }
+
+        function setLang(lang) {
+            selectedLang = lang;
+            document.getElementById('btnLangEn').classList.toggle('active', lang === 'en');
+            document.getElementById('btnLangTe').classList.toggle('active', lang === 'te');
+            document.getElementById('btnLangTa').classList.toggle('active', lang === 'ta');
+
+            const lblName = document.getElementById('lblPatientName');
+            const lblPhone = document.getElementById('lblPatientPhone');
+            const inpName = document.getElementById('patientName');
+
+            if (lang === 'ta') {
+                if (lblName) lblName.innerText = "Patient Name / நோயாளி பெயர்";
+                if (lblPhone) lblPhone.innerText = "Mobile Number / மொபைல் எண்";
+                if (inpName) inpName.placeholder = "எ.கா. முருகன் / செல்வம்";
+            } else if (lang === 'te') {
+                if (lblName) lblName.innerText = "Patient Name / రోగి పేరు";
+                if (lblPhone) lblPhone.innerText = "Mobile Number / మొబైల్ నంబర్";
+                if (inpName) inpName.placeholder = "ఉదా: రమేష్ కుమార్";
+            } else {
+                if (lblName) lblName.innerText = "Patient Name / రోగి పేరు / பெயர்";
+                if (lblPhone) lblPhone.innerText = "Mobile Number / మొబైల్ నంబర్ / எண்";
+                if (inpName) inpName.placeholder = "e.g. Ramesh Kumar / Murugan";
+            }
+        }
+
+        async function handleLoginSubmit(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btnSubmit');
+            const name = document.getElementById('patientName').value.trim();
+            const phone = document.getElementById('patientPhone').value.trim().replace(/\D/g, '');
+            const isPriority = document.getElementById('chkPriority').checked;
+
+            if (!name) {
+                alert('Please enter your name.');
+                return;
+            }
+            if (phone.length !== 10) {
+                alert('Please enter a valid 10-digit mobile number for WhatsApp alerts.');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = `<span>⏳</span> <span>Generating Token & Sending WhatsApp...</span>`;
+
+            try {
+                const res = await fetch('/api/tokens/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: name,
+                        phone: phone,
+                        preferred_language: selectedLang,
+                        is_priority: isPriority,
+                        priority_reason: isPriority ? 'Priority Patient' : ''
+                    })
+                });
+
+                const data = await res.json();
+                if (data.success) {
+                    // Remember profile for future fast login
+                    localStorage.setItem('smartq_user_name', name);
+                    localStorage.setItem('smartq_user_phone', phone);
+                    localStorage.setItem('smartq_user_lang', selectedLang);
+
+                    btn.innerHTML = `<span>🎉</span> <span>Token #${data.token_no} Ready! Opening Pass...</span>`;
+
+                    // Instant redirect to live tracking pass!
+                    setTimeout(() => {
+                        window.location.href = `/track/${data.token_no}`;
+                    }, 500);
+                } else {
+                    alert('Registration notice: ' + data.message);
+                    btn.disabled = false;
+                    btn.innerHTML = `<span>🎟️</span> <span>Get Token Pass & Receive WhatsApp Alerts</span>`;
+                }
+            } catch (err) {
+                console.error('Login error:', err);
+                alert('Network error. Please try again.');
+                btn.disabled = false;
+                btn.innerHTML = `<span>🎟️</span> <span>Get Token Pass & Receive WhatsApp Alerts</span>`;
+            }
+        }
+    </script>
+</body>
+</html>
