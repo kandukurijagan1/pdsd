@@ -79,9 +79,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function playCallChime() {
-        // High-low two-tone doorbell chime
-        playBeep(659.25, 0.25, 'sine'); // E5
-        setTimeout(() => playBeep(523.25, 0.4, 'sine'), 250); // C5
+        // High-low two-tone hospital/airport doorbell chime (C5 -> E5 -> G5)
+        playBeep(523.25, 0.25, 'sine'); // C5
+        setTimeout(() => playBeep(659.25, 0.25, 'sine'), 220); // E5
+        setTimeout(() => playBeep(783.99, 0.4, 'sine'), 440); // G5
     }
 
     function playHelpAlarm() {
@@ -311,10 +312,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 ? `<button type="button" onclick="window.sendDirectWhatsApp('${t.phone}', '${t.token_no}', '${t.name || 'Patient'}')" class="btn btn-xs" style="background:rgba(37,211,102,0.15); border:1px solid #25D366; color:#25D366; font-weight:700; padding:0.25rem 0.5rem; cursor:pointer;" title="Send instant WhatsApp message via local microservice (:3005)">💬 Auto</button>`
                 : '';
 
+            const estWait = t.estimated_wait_minutes || ((idx + 1) * 3);
             html += `
                 <tr>
                     <td><strong>${idx + 1}</strong></td>
-                    <td class="token-cell">${t.token_no}</td>
+                    <td class="token-cell">
+                        <div>${t.token_no}</div>
+                        <span style="color:#10b981; font-size:0.7rem; font-weight:700; background:rgba(16,185,129,0.15); padding:1px 5px; border-radius:4px;">~${estWait}m</span>
+                    </td>
                     <td>
                         <div>${t.name || '<span class="text-muted">Walk-in</span>'}</div>
                         ${t.phone ? `<div style="font-size:0.75rem; color:#94a3b8; font-family:var(--font-mono);">${t.phone}</div>` : ''}
@@ -943,6 +948,37 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
+    // Inter-Department Counter Routing & Patient Transfer
+    window.transferActiveToken = async function(targetCounter = 'Counter 3 (Pharmacy)') {
+        if (!currentToken) {
+            alert("No active token is currently called to transfer!");
+            return;
+        }
+        const notes = prompt(`Transfer Token #${currentToken.token_no} (${currentToken.name || 'Patient'}) to ${targetCounter}.\nEnter consultation notes or instructions:`, "Doctor consultation completed, forwarded for medicine dispensing");
+        if (notes === null) return;
+
+        try {
+            const res = await fetch('/api/queue/transfer', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    token_id: currentToken.id,
+                    target_counter: targetCounter,
+                    notes: notes
+                })
+            });
+            const d = await res.json();
+            if (d.success) {
+                alert(`✅ Patient #${currentToken.token_no} successfully transferred to ${targetCounter}!\nAutomated WhatsApp notification dispatched to patient.`);
+                fetchQueueData();
+            } else {
+                alert("Transfer failed: " + (d.message || "Unknown error"));
+            }
+        } catch(err) {
+            alert("Transfer request error: " + err.message);
+        }
+    };
 
     // Check status on startup
     checkWhatsAppWebStatus();

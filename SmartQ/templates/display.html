@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartQ – Public Hospital Wall Display (Waiting Hall TV)</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=JetBrains+Mono:wght@700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-body: #090d16;
+            --bg-card: #131b2e;
+            --border-card: #1e293b;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --primary: #3b82f6;
+            --success: #10b981;
+            --accent: #38bdf8;
+            --warning: #f59e0b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-body);
+            color: var(--text-primary);
+            font-family: 'Inter', -apple-system, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        /* Top TV Display Header */
+        .tv-header {
+            background: #0f172a;
+            border-bottom: 2px solid #1e293b;
+            padding: 0.85rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .tv-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-icon {
+            font-size: 2rem;
+            color: #38bdf8;
+        }
+
+        .brand-title {
+            font-size: 1.6rem;
+            font-weight: 900;
+            letter-spacing: -0.02em;
+            color: #f8fafc;
+        }
+
+        .brand-sub {
+            font-size: 0.85rem;
+            color: #94a3b8;
+            font-weight: 600;
+        }
+
+        .tv-clock-box {
+            text-align: right;
+        }
+
+        .tv-clock {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: #38bdf8;
+            letter-spacing: 0.05em;
+        }
+
+        .tv-date {
+            font-size: 0.85rem;
+            color: #94a3b8;
+            font-weight: 600;
+        }
+
+        /* Main TV Stage */
+        .tv-stage {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 2.2fr 1fr;
+            gap: 1.5rem;
+            padding: 1.5rem 2rem;
+        }
+
+        /* Hero Now Calling Banner */
+        .hero-calling-card {
+            background: linear-gradient(135deg, #131b2e, #0b1120);
+            border: 3px solid #3b82f6;
+            border-radius: 24px;
+            padding: 2rem;
+            text-align: center;
+            box-shadow: 0 20px 50px rgba(59, 130, 246, 0.25);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+
+        .hero-calling-card.flash-call {
+            border-color: #10b981;
+            box-shadow: 0 0 60px rgba(16, 185, 129, 0.5);
+            animation: pulseGlow 1.2s infinite alternate;
+        }
+
+        @keyframes pulseGlow {
+            from { transform: scale(1); }
+            to { transform: scale(1.015); }
+        }
+
+        .calling-kicker {
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: #38bdf8;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            margin-bottom: 0.5rem;
+        }
+
+        .calling-token-display {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 6.5rem;
+            font-weight: 900;
+            color: #f8fafc;
+            line-height: 1;
+            margin: 0.5rem 0;
+            text-shadow: 0 0 35px rgba(56, 189, 248, 0.6);
+        }
+
+        .calling-patient-name {
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: #e2e8f0;
+            margin-bottom: 0.5rem;
+        }
+
+        .calling-counter-badge {
+            background: #2563eb;
+            color: #ffffff;
+            font-size: 1.4rem;
+            font-weight: 800;
+            display: inline-block;
+            padding: 0.5rem 2rem;
+            border-radius: 9999px;
+            margin-top: 0.5rem;
+            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
+            letter-spacing: 0.05em;
+        }
+
+        /* Multi-Counter Row */
+        .multi-counter-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .counter-card {
+            background: #131b2e;
+            border: 1px solid #1e293b;
+            border-radius: 16px;
+            padding: 1.25rem 1rem;
+            text-align: center;
+        }
+
+        .counter-card.active-counter {
+            border-color: #3b82f6;
+            background: #17233d;
+        }
+
+        .counter-card-title {
+            font-size: 0.85rem;
+            color: #94a3b8;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .counter-card-token {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 2.2rem;
+            font-weight: 800;
+            color: #38bdf8;
+            margin: 0.35rem 0;
+        }
+
+        .counter-card-doc {
+            font-size: 0.75rem;
+            color: #cbd5e1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Right Panel: Upcoming Queue & Scan QR */
+        .tv-side-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+
+        .upcoming-card {
+            background: #131b2e;
+            border: 1px solid #1e293b;
+            border-radius: 20px;
+            padding: 1.25rem;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .upcoming-header {
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: #f8fafc;
+            border-bottom: 1px solid #1e293b;
+            padding-bottom: 0.75rem;
+            margin-bottom: 0.75rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .upcoming-list {
+            list-style: none;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .upcoming-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.65rem 0.85rem;
+            border-radius: 10px;
+            background: #0b1120;
+            margin-bottom: 0.5rem;
+            border-left: 3px solid #3b82f6;
+        }
+
+        .upcoming-item.priority {
+            border-left-color: #f59e0b;
+            background: rgba(245, 158, 11, 0.08);
+        }
+
+        .upcoming-tok {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: #f8fafc;
+        }
+
+        .upcoming-name {
+            font-size: 0.85rem;
+            color: #cbd5e1;
+            font-weight: 600;
+        }
+
+        .upcoming-eta {
+            font-size: 0.75rem;
+            color: #10b981;
+            font-weight: 700;
+            background: rgba(16, 185, 129, 0.15);
+            padding: 0.2rem 0.5rem;
+            border-radius: 6px;
+        }
+
+        /* QR Walk-in Registration Box */
+        .tv-qr-box {
+            background: #131b2e;
+            border: 1px solid #1e293b;
+            border-radius: 20px;
+            padding: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .tv-qr-img {
+            background: #ffffff;
+            padding: 6px;
+            border-radius: 10px;
+            width: 85px;
+            height: 85px;
+            flex-shrink: 0;
+        }
+
+        .tv-qr-info h4 {
+            font-size: 0.95rem;
+            font-weight: 800;
+            color: #f8fafc;
+            margin-bottom: 0.2rem;
+        }
+
+        .tv-qr-info p {
+            font-size: 0.75rem;
+            color: #94a3b8;
+            line-height: 1.4;
+        }
+
+        /* Bottom Live Marquee Ticker */
+        .tv-ticker-bar {
+            background: #0f172a;
+            border-top: 2px solid #1e293b;
+            padding: 0.65rem 2rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #94a3b8;
+        }
+
+        .ticker-pill {
+            background: #ef4444;
+            color: #ffffff;
+            font-size: 0.75rem;
+            font-weight: 900;
+            padding: 0.25rem 0.65rem;
+            border-radius: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .ticker-text {
+            color: #cbd5e1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <header class="tv-header">
+        <div class="tv-brand">
+            <span class="brand-icon">⚡</span>
+            <div>
+                <div class="brand-title">SmartQ – Outpatient & Care Center</div>
+                <div class="brand-sub">Principles of Digital Systems and Design (PDSD) • Live Waiting Hall Display</div>
+            </div>
+        </div>
+
+        <div class="tv-clock-box">
+            <div class="tv-clock" id="tvLiveClock">12:00:00 PM</div>
+            <div class="tv-date" id="tvLiveDate">Monday, November 23, 2026</div>
+        </div>
+    </header>
+
+    <!-- Main TV Stage -->
+    <main class="tv-stage">
+        
+        <!-- Left: Now Calling Hero & Multi-Counters -->
+        <div style="display: flex; flex-direction: column;">
+            
+            <div class="hero-calling-card" id="heroCallingCard">
+                <div class="calling-kicker">NOW CALLING / ప్రస్తుతం పిలవబడుతున్న టోకెన్ / அழைக்கப்படும் டோக்கன்</div>
+                <div class="calling-token-display" id="heroTokenDisplay">A016</div>
+                <div class="calling-patient-name" id="heroPatientName">Sunitha Murthy</div>
+                <div>
+                    <span class="calling-counter-badge" id="heroCounterBadge">COUNTER 1 — GENERAL MEDICINE</span>
+                </div>
+            </div>
+
+            <!-- Multi-Counter Status Grid -->
+            <div class="multi-counter-grid">
+                <div class="counter-card active-counter">
+                    <div class="counter-card-title">Counter 1</div>
+                    <div class="counter-card-token" id="c1Token">A016</div>
+                    <div class="counter-card-doc">General Medicine</div>
+                </div>
+                <div class="counter-card">
+                    <div class="counter-card-title">Counter 2</div>
+                    <div class="counter-card-token" id="c2Token">A024</div>
+                    <div class="counter-card-doc">Emergency / Priority</div>
+                </div>
+                <div class="counter-card">
+                    <div class="counter-card-title">Counter 3</div>
+                    <div class="counter-card-token" id="c3Token">A001</div>
+                    <div class="counter-card-doc">Pharmacy Dispense</div>
+                </div>
+                <div class="counter-card">
+                    <div class="counter-card-title">Counter 4</div>
+                    <div class="counter-card-token" id="c4Token">A002</div>
+                    <div class="counter-card-doc">Diagnostic Laboratory</div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Right: Upcoming Queue & Walk-in QR -->
+        <div class="tv-side-panel">
+            
+            <!-- Upcoming Waiting List -->
+            <div class="upcoming-card">
+                <div class="upcoming-header">
+                    <span>Upcoming Tokens / తదుపరి టోకెన్లు</span>
+                    <span style="font-size:0.85rem; color:#38bdf8;" id="tvWaitingCount">11 Waiting</span>
+                </div>
+                <ul class="upcoming-list" id="tvUpcomingList">
+                    <!-- Dynamically Populated -->
+                </ul>
+            </div>
+
+            <!-- Walk-in Mobile QR Box -->
+            <div class="tv-qr-box">
+                <img src="/api/qr/token/A016" class="tv-qr-img" id="tvEntranceQr" alt="Scan QR">
+                <div class="tv-qr-info">
+                    <h4>Scan with Mobile Camera</h4>
+                    <p>Track your position live on phone or register for priority medical consultation.</p>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- Bottom Marquee Ticker -->
+    <div class="tv-ticker-bar">
+        <span class="ticker-pill">NOTICE</span>
+        <span class="ticker-text" id="tvTickerText">
+            Welcome to SmartQ Service Center • Please keep your WhatsApp ticket ready • Audio announcements in English, Telugu and Tamil • Priority care available for senior citizens and emergency patients.
+        </span>
+    </div>
+
+    <!-- Script for TV Display (Audio Chime + TTS + Live Updates) -->
+    <script>
+        // Real-time Clock
+        function updateClock() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const dateStr = now.toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            document.getElementById('tvLiveClock').textContent = timeStr;
+            document.getElementById('tvLiveDate').textContent = dateStr;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // Web Audio API Ding-Dong Hospital Chime Generator
+        let audioCtx = null;
+        function playAirportChime() {
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+
+                const now = audioCtx.currentTime;
+                
+                // Tone 1: C5 (523.25 Hz)
+                const osc1 = audioCtx.createOscillator();
+                const gain1 = audioCtx.createGain();
+                osc1.type = 'sine';
+                osc1.frequency.setValueAtTime(523.25, now);
+                gain1.gain.setValueAtTime(0.3, now);
+                gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+                osc1.connect(gain1);
+                gain1.connect(audioCtx.destination);
+                osc1.start(now);
+                osc1.stop(now + 0.6);
+
+                // Tone 2: E5 (659.25 Hz)
+                const osc2 = audioCtx.createOscillator();
+                const gain2 = audioCtx.createGain();
+                osc2.type = 'sine';
+                osc2.frequency.setValueAtTime(659.25, now + 0.25);
+                gain2.gain.setValueAtTime(0.3, now + 0.25);
+                gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.85);
+                osc2.connect(gain2);
+                gain2.connect(audioCtx.destination);
+                osc2.start(now + 0.25);
+                osc2.stop(now + 0.85);
+            } catch(e) {
+                console.warn("Chime note:", e);
+            }
+        }
+
+        // Multilingual Voice Announcement Engine
+        function speakTrilingual(tokenNo, counter, lang='en') {
+            if (!('speechSynthesis' in window)) return;
+            window.speechSynthesis.cancel();
+
+            playAirportChime();
+
+            setTimeout(() => {
+                let text = "";
+                let langCode = 'en-IN';
+
+                if (lang === 'te') {
+                    text = `టోకెన్ సంఖ్య ${tokenNo}, దయచేసి ${counter} కు రండి`;
+                    langCode = 'te-IN';
+                } else if (lang === 'ta') {
+                    text = `டோக்கன் எண் ${tokenNo}, தயவுசெய்து ${counter}-க்கு வரவும்`;
+                    langCode = 'ta-IN';
+                } else {
+                    text = `Token ${tokenNo}, please proceed to ${counter}`;
+                    langCode = 'en-IN';
+                }
+
+                const utter = new SpeechSynthesisUtterance(text);
+                utter.lang = langCode;
+                utter.rate = 0.88;
+                utter.pitch = 1.0;
+                window.speechSynthesis.speak(utter);
+            }, 600);
+        }
+
+        // Live Queue State Tracking
+        let lastCalledTokenNo = null;
+
+        async function fetchQueueStatus() {
+            try {
+                const res = await fetch('/api/queue');
+                if (!res.ok) return;
+                const d = await res.json();
+                if (!d.success) return;
+
+                // Currently Called Token
+                const current = d.current_token;
+                if (current) {
+                    document.getElementById('heroTokenDisplay').textContent = current.token_no;
+                    document.getElementById('heroPatientName').textContent = current.name || 'Walk-in Patient';
+                    document.getElementById('heroCounterBadge').textContent = (current.counter || 'Counter 1').toUpperCase();
+                    document.getElementById('c1Token').textContent = current.token_no;
+
+                    // Trigger flash & speech if new call detected
+                    if (lastCalledTokenNo && lastCalledTokenNo !== current.token_no) {
+                        const card = document.getElementById('heroCallingCard');
+                        card.classList.add('flash-call');
+                        setTimeout(() => card.classList.remove('flash-call'), 4000);
+                        speakTrilingual(current.token_no, current.counter || 'Counter 1', current.preferred_language || 'en');
+                    }
+                    lastCalledTokenNo = current.token_no;
+                } else {
+                    document.getElementById('heroTokenDisplay').textContent = '---';
+                    document.getElementById('heroPatientName').textContent = 'Counter Ready';
+                }
+
+                // Waiting List
+                const waiting = d.waiting_list || [];
+                document.getElementById('tvWaitingCount').textContent = `${waiting.length} Waiting`;
+                const listEl = document.getElementById('tvUpcomingList');
+                listEl.innerHTML = '';
+
+                waiting.slice(0, 8).forEach((w, idx) => {
+                    const li = document.createElement('li');
+                    li.className = `upcoming-item ${w.is_priority ? 'priority' : ''}`;
+                    const est = (idx + 1) * 3;
+                    li.innerHTML = `
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span class="upcoming-tok">${w.token_no}</span>
+                            <span class="upcoming-name">${w.name || 'Patient'}</span>
+                            ${w.is_priority ? '<span style="color:#f59e0b; font-size:0.75rem;">★ Priority</span>' : ''}
+                        </div>
+                        <span class="upcoming-eta">~${est} mins</span>
+                    `;
+                    listEl.appendChild(li);
+                });
+
+            } catch(e) {
+                console.error("TV poll error:", e);
+            }
+        }
+
+        // Poll every 2.5 seconds
+        setInterval(fetchQueueStatus, 2500);
+        fetchQueueStatus();
+
+        // Unlock audio context on user interaction
+        document.body.addEventListener('click', () => {
+            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+        }, { once: true });
+    </script>
+</body>
+</html>

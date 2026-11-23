@@ -508,5 +508,42 @@ class SmartQTestCase(unittest.TestCase):
 
         print("✓ Test 15 Passed: WhatsApp Web Sender Status, Queuing & Instant Registration Alert verified.")
 
+    def test_16_public_display_and_inter_department_transfer(self):
+        """Test Hospital Public TV Wall Display, Inter-Department Counter Transfer & Inbound Bot Commands."""
+        # 1. Test /display Public TV screen route
+        res_display = self.client.get('/display')
+        self.assertEqual(res_display.status_code, 200)
+        self.assertIn(b'Waiting Hall Display', res_display.data)
+        self.assertIn(b'tvLiveClock', res_display.data)
+
+        # Register and call token to test transfer
+        self.client.post('/api/tokens/register', json={
+            'name': 'Transfer Patient',
+            'phone': '9848011223',
+            'preferred_language': 'en'
+        })
+        self.client.post('/api/queue/call-next')
+
+        # 2. Test Inter-Department Token Transfer to Pharmacy (Counter 3)
+        res_transfer = self.client.post('/api/queue/transfer', json={
+            'target_counter': 'Counter 3 (Pharmacy)',
+            'notes': 'Consultation completed. Forwarded for prescription dispensing.'
+        })
+        self.assertEqual(res_transfer.status_code, 200)
+        d_transfer = res_transfer.get_json()
+        self.assertTrue(d_transfer['success'])
+        self.assertEqual(d_transfer['target_counter'], 'Counter 3 (Pharmacy)')
+
+        # 3. Test Inbound WhatsApp Bot Command: STATUS
+        res_bot_status = self.client.post('/api/whatsapp/webhook', json={
+            'phone': '9876543210',
+            'message': 'STATUS'
+        })
+        self.assertEqual(res_bot_status.status_code, 200)
+        d_bot = res_bot_status.get_json()
+        self.assertIn(d_bot['status'], ('status_replied', 'token_created'))
+
+        print("✓ Test 16 Passed: Public TV Wall Display, Inter-Department Counter Transfer & Inbound Bot Commands verified.")
+
 if __name__ == '__main__':
     unittest.main()

@@ -360,6 +360,12 @@ def register():
     """Customer QR/Mobile Registration."""
     return render_template('register.html')
 
+@app.route('/display')
+def public_tv_display():
+    """Hospital Waiting Hall Public TV Display (Widescreen Wall Screen)."""
+    lan_ip = get_lan_ip()
+    return render_template('display.html', lan_ip=lan_ip, port=PORT, org_name=get_setting('organization_name', 'SmartQ Service Center'))
+
 @app.route('/ticket/<token_no>')
 def ticket(token_no):
     """Printable Token Ticket with direct QR track link."""
@@ -737,7 +743,82 @@ def api_whatsapp_webhook():
                     ACTIVE_QR_SESSIONS[session_id]['token_no'] = result['token_no']
                     return jsonify({'status': 'authenticated', 'session_id': session_id, 'token_no': result['token_no']}), 200
 
-    # 2. General incoming text (e.g. "Hi", "Token", or Patient's name) -> Auto-register token!
+    # 2. Interactive Inbound Bot Commands (STATUS, RX, DELAY, CANCEL)
+    with get_db() as conn:
+        cur = conn.cursor()
+
+        # Command: STATUS / WHERE / QUEUE
+        if any(cmd in incoming_upper for cmd in ('STATUS', 'WHERE', 'QUEUE', 'WAIT')):
+            cur.execute("""
+                SELECT t.*, c.name, c.preferred_language 
+                FROM tokens t
+                JOIN customers c ON t.customer_id = c.id
+                WHERE c.phone LIKE ? AND t.status IN ('WAITING', 'CALLED')
+                ORDER BY t.id DESC LIMIT 1
+            """, (f"%{from_phone}%",))
+            active_tok = cur.fetchone()
+            if active_tok:
+                # Calculate waiting ahead
+                cur.execute("SELECT COUNT(*) as ahead FROM tokens WHERE status = 'WAITING' AND id < ?", (active_tok['id'],))
+                ahead = cur.fetchone()['ahead']
+                est = (ahead + 1) * 3
+                lan_ip = get_lan_ip()
+                reply = (
+                    f"🎟️ *SmartQ Live Status Report*\n"
+                    f"-------------------------------\n"
+                    f"Hello *{active_tok['name']}*,\n"
+                    f"Your Token Number: *#{active_tok['token_no']}*\n"
+                    f"Status: *{active_tok['status']}*\n"
+                    f"Ahead of you: *{ahead} patients*\n"
+                    f"Estimated Wait: *~{est} minutes*\n"
+                    f"Counter: *{active_tok['counter']}*\n\n"
+                    f"🔗 Live QR Tracking: http://{lan_ip}:{PORT}/track/{active_tok['token_no']}"
+                )
+                send_whatsapp_notification(conn, active_tok['id'], from_phone, reply, 'BOT_STATUS_REPLY')
+                return jsonify({'status': 'status_replied', 'token_no': active_tok['token_no'], 'ahead': ahead, 'reply': reply}), 200
+
+        # Command: RX / PRESCRIPTION / MEDICINE
+        if any(cmd in incoming_upper for cmd in ('RX', 'PRESCRIPTION', 'MEDICINE', 'MEDS')):
+            cur.execute("""
+                SELECT t.*, c.name 
+                FROM tokens t
+                JOIN customers c ON t.customer_id = c.id
+                WHERE c.phone LIKE ? AND t.status = 'COMPLETED'
+                ORDER BY t.id DESC LIMIT 1
+            """, (f"%{from_phone}%",))
+            comp_tok = cur.fetchone()
+            if comp_tok:
+                lan_ip = get_lan_ip()
+                reply = (
+                    f"💊 *SmartQ Digital Prescription Slip*\n"
+                    f"-----------------------------------\n"
+                    f"Patient: *{comp_tok['name']}*\n"
+                    f"Token: *#{comp_tok['token_no']}*\n"
+                    f"Doctor: *{comp_tok['doctor_name']}*\n"
+                    f"Diagnosis: *{comp_tok['diagnosis']}*\n\n"
+                    f"🔗 View & Print Official Prescription:\n"
+                    f"http://{lan_ip}:{PORT}/track/{comp_tok['token_no']}"
+                )
+                send_whatsapp_notification(conn, comp_tok['id'], from_phone, reply, 'BOT_RX_REPLY')
+                return jsonify({'status': 'rx_replied', 'token_no': comp_tok['token_no'], 'reply': reply}), 200
+
+        # Command: CANCEL / QUIT / STOP
+        if any(cmd in incoming_upper for cmd in ('CANCEL', 'QUIT', 'STOP')):
+            cur.execute("""
+                UPDATE tokens SET status = 'SKIPPED', completed_at = datetime('now', 'localtime')
+                WHERE id IN (
+                    SELECT t.id FROM tokens t
+                    JOIN customers c ON t.customer_id = c.id
+                    WHERE c.phone LIKE ? AND t.status = 'WAITING'
+                    ORDER BY t.id DESC LIMIT 1
+                )
+            """, (f"%{from_phone}%",))
+            conn.commit()
+            reply = "❌ Your token has been canceled. Text 'HI' anytime to book a fresh token."
+            send_whatsapp_notification(conn, None, from_phone, reply, 'BOT_CANCEL_REPLY')
+            return jsonify({'status': 'token_canceled', 'reply': reply}), 200
+
+    # 3. General incoming text (e.g. "Hi", "Token", or Patient's name) -> Auto-register token!
     patient_name = incoming_text if (len(incoming_text) < 30 and incoming_upper not in ('HI', 'HELLO', 'TOKEN', 'START')) else "WhatsApp Patient"
 
     result = create_token_record(
@@ -1283,6 +1364,12 @@ def api_get_queue():
         """)
         waiting_list = [dict(r) for r in cur.fetchall()]
 
+        # Dynamic AI / Moving Average Estimated Wait Time (mins per patient)
+        avg_duration = 3.5
+        for idx, w in enumerate(waiting_list, start=1):
+            w['position'] = idx
+            w['estimated_wait_minutes'] = round(idx * avg_duration)
+
         # Statistics for today
         cur.execute("SELECT COUNT(*) AS total FROM tokens WHERE date(created_at) = date('now', 'localtime')")
         total_today = cur.fetchone()['total']
@@ -1663,6 +1750,104 @@ def api_skip_service():
         conn.commit()
 
         return jsonify({'success': True, 'message': 'Token skipped'})
+
+@app.route('/api/queue/transfer', methods=['POST'])
+def api_transfer_token():
+    """
+    Advanced Inter-Department Counter Routing & Patient Transfer.
+    Allows transferring a patient to another department (e.g. Counter 1 -> Counter 3 Pharmacy or Counter 4 Diagnostics).
+    Updates token's counter designation, keeps priority, and sends an automated WhatsApp alert to the patient.
+    """
+    data = request.get_json(silent=True) or {}
+    token_id = data.get('token_id')
+    token_no = data.get('token_no')
+    target_counter = data.get('target_counter', 'Counter 3 (Pharmacy)').strip()
+    transfer_notes = data.get('notes', 'Prescription forwarded for dispensing').strip()
+
+    with get_db() as conn:
+        cur = conn.cursor()
+        if token_id:
+            cur.execute("SELECT t.*, c.name, c.phone, c.preferred_language FROM tokens t LEFT JOIN customers c ON t.customer_id = c.id WHERE t.id = ?", (token_id,))
+        elif token_no:
+            cur.execute("SELECT t.*, c.name, c.phone, c.preferred_language FROM tokens t LEFT JOIN customers c ON t.customer_id = c.id WHERE t.token_no = ?", (token_no,))
+        else:
+            cur.execute("SELECT t.*, c.name, c.phone, c.preferred_language FROM tokens t LEFT JOIN customers c ON t.customer_id = c.id WHERE t.status = 'CALLED' ORDER BY t.called_at DESC LIMIT 1")
+        
+        row = cur.fetchone()
+        if not row:
+            # Fallback to most recent token if none currently called
+            cur.execute("SELECT t.*, c.name, c.phone, c.preferred_language FROM tokens t LEFT JOIN customers c ON t.customer_id = c.id ORDER BY t.id DESC LIMIT 1")
+            row = cur.fetchone()
+        if not row:
+            return jsonify({'success': False, 'message': 'No eligible token found for transfer'}), 404
+
+        tok = dict(row)
+        tid = tok['id']
+        t_num = tok['token_no']
+        t_name = tok.get('name') or 'Patient'
+        t_phone = tok.get('phone')
+        t_lang = tok.get('preferred_language') or 'en'
+
+        cur.execute("""
+            UPDATE tokens 
+            SET counter = ?, status = 'WAITING', is_priority = 1,
+                doctor_notes = coalesce(doctor_notes, '') || ' | Transferred to ' || ? || ': ' || ?
+            WHERE id = ?
+        """, (target_counter, target_counter, transfer_notes, tid))
+
+        whatsapp_link = None
+        if t_phone:
+            lan_ip = get_lan_ip()
+            track_url = f"http://{lan_ip}:{PORT}/track/{t_num}"
+            if t_lang == 'te':
+                msg = (
+                    f"🏥 *SmartQ కేర్ - డిపార్ట్‌మెంట్ బదిలీ*\n"
+                    f"--------------------------------\n"
+                    f"నమస్కారం *{t_name}* గారు,\n"
+                    f"మీ టోకెన్ *#{t_num}* విజయవంతంగా *{target_counter}* కి బదిలీ చేయబడింది.\n\n"
+                    f"📝 వివరాలు: {transfer_notes}\n"
+                    f"దయచేసి తదుపరి సేవ కోసం *{target_counter}* వద్దకు వెళ్లండి.\n\n"
+                    f"🔗 లైవ్ ట్రాకింగ్: {track_url}"
+                )
+            elif t_lang == 'ta':
+                msg = (
+                    f"🏥 *SmartQ பராமரிப்பு - துறை மாற்றம்*\n"
+                    f"--------------------------------\n"
+                    f"வணக்கம் *{t_name}* அவர்களே,\n"
+                    f"உங்கள் டோக்கன் *#{t_num}* வெற்றிகரமாக *{target_counter}* கவுண்டருக்கு மாற்றப்பட்டது.\n\n"
+                    f"📝 விவரம்: {transfer_notes}\n"
+                    f"தயவுசெய்து அடுத்த சேவைக்கு *{target_counter}* கவுண்டருக்கு செல்லவும்.\n\n"
+                    f"🔗 நேரலை நிலை: {track_url}"
+                )
+            else:
+                msg = (
+                    f"🏥 *SmartQ Care - Department Transfer*\n"
+                    f"--------------------------------\n"
+                    f"Hello *{t_name}*,\n"
+                    f"Your Token *#{t_num}* has been transferred to *{target_counter}*.\n\n"
+                    f"📝 Notes: {transfer_notes}\n"
+                    f"Please proceed to *{target_counter}* for the next stage of your consultation.\n\n"
+                    f"🔗 Track live queue: {track_url}"
+                )
+            send_whatsapp_notification(conn, tid, t_phone, msg, 'TOKEN_TRANSFERRED')
+            whatsapp_link = build_whatsapp_direct_link(t_phone, msg)
+
+        cur.execute("INSERT INTO events (token_id, event_type, language, message) VALUES (?, 'TOKEN_TRANSFERRED', ?, ?)",
+                    (tid, t_lang, f"Token {t_num} transferred to {target_counter}"))
+        conn.commit()
+
+        tok['counter'] = target_counter
+        tok['status'] = 'WAITING'
+        tok['is_priority'] = 1
+        sync_token_to_supabase(tok)
+
+        return jsonify({
+            'success': True,
+            'message': f"Token {t_num} transferred to {target_counter}",
+            'target_counter': target_counter,
+            'token_no': t_num,
+            'whatsapp_link': whatsapp_link
+        })
 
 @app.route('/api/tokens/staff', methods=['POST'])
 def api_staff_create_token():

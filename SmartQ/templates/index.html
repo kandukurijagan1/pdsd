@@ -25,6 +25,7 @@
             <span class="lan-ip-display" title="Kiosk & mobile devices must connect to this IP">
                 LAN IP: <strong id="lanIpDisplay">{{ lan_ip }}:{{ port }}</strong>
             </span>
+            <a href="/display" target="_blank" class="btn btn-outline-sm" style="border-color:#38bdf8; color:#38bdf8; font-weight:800;" title="Hospital Waiting Hall Public TV Display Mode">📺 TV Display</a>
             <a href="/kiosk" target="_blank" class="btn btn-outline-sm" title="Test ESP32 buttons & LCD in browser">🖥️ Virtual Kiosk</a>
             <button class="btn btn-outline-sm" id="btnSupabaseCloud" style="border-color:#3ECF8E; color:#3ECF8E; display:inline-flex; align-items:center; gap:5px;"><span>☁️</span> <span>Supabase Cloud</span></button>
             <a href="/whatsapp" target="_blank" class="btn btn-outline-sm" style="border-color:#25D366; color:#25D366; text-decoration:none; display:inline-flex; align-items:center; gap:5px;"><span>💬</span> <span>Free WhatsApp Hub ↗</span></a>
@@ -130,6 +131,17 @@
                             <a id="btnWhatsAppAlert" href="#" target="_blank" class="btn btn-sm" style="display:none; background:#25D366; color:#ffffff; font-weight:700; border-radius:8px; padding:0.5rem 1rem; text-decoration:none;">
                                 💬 <span>Send WhatsApp Alert to Patient</span>
                             </a>
+                        </div>
+
+                        <!-- Department Transfer Action Row -->
+                        <div style="margin-top: 0.85rem; display: flex; justify-content: center; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                            <span style="font-size: 0.8rem; color: #94a3b8; font-weight: 700;">Forward Patient:</span>
+                            <button class="btn btn-xs" style="background: rgba(139, 92, 246, 0.2); border: 1px solid #8b5cf6; color: #c4b5fd; font-weight: 700; border-radius: 6px; padding: 0.35rem 0.65rem; cursor: pointer;" onclick="window.transferActiveToken('Counter 3 (Pharmacy)')">
+                                💊 To Pharmacy (Counter 3)
+                            </button>
+                            <button class="btn btn-xs" style="background: rgba(56, 189, 248, 0.2); border: 1px solid #38bdf8; color: #7dd3fc; font-weight: 700; border-radius: 6px; padding: 0.35rem 0.65rem; cursor: pointer;" onclick="window.transferActiveToken('Counter 4 (Diagnostics)')">
+                                🧪 To Lab (Counter 4)
+                            </button>
                         </div>
                     </div>
                 </div>

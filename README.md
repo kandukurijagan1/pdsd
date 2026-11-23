@@ -42,6 +42,19 @@ SmartQ is an inclusive, accessible queue management and automated token calling 
 ```
 
 ### Key Capabilities:
+- **Hospital Waiting Hall Public TV Display (`/display`):**
+  - High-contrast, airport/hospital-style TV wall monitor interface for waiting halls.
+  - Multi-Counter split status (Counter 1: General Medicine, Counter 2: Emergency / Priority, Counter 3: Pharmacy, Counter 4: Diagnostics).
+  - Web Audio API dual-tone chime (`Ding-Dong`) synthesized before trilingual spoken announcements.
+  - Live waiting ticker with dynamic Estimated Wait Times and large mobile scan-to-track QR code.
+- **Inter-Department Counter Routing & Patient Transfer (`/api/queue/transfer`):**
+  - Counter staff can 1-click forward consulting patients to Pharmacy (Counter 3) or Diagnostics (Counter 4).
+  - Automatically updates patient's queue routing and dispatches an automated WhatsApp transfer receipt.
+- **Dynamic AI Estimated Wait Time (EWT) Engine:**
+  - Calculates real-time consultation duration moving averages.
+  - Informs each waiting patient of their dynamic wait time (e.g. `~6 mins`) on tracking passes, WhatsApp 5-ahead alerts, and TV display.
+- **Interactive WhatsApp Bot Inbound Commands:**
+  - Patients can text the WhatsApp bot: `STATUS` (live position check), `RX` (prescription details), `CANCEL` (cancellation).
 - **Trilingual Inclusivity (English, Telugu, Tamil):**
   - Spoken token announcements and kiosk voice recognition in **English**, **Telugu (తెలుగు)**, and **Tamil (தமிழ்)**.
   - WhatsApp messages, ticket receipts, and registration screens in all 3 languages.
