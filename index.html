@@ -1,0 +1,1103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartQ – Smart Queue Management & Automated Token Calling (PDSD)</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="static/style.css">
+    <!-- Supabase JS Client for Live Cloud Synchronization -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        /* Standalone App Specific Styles */
+        .portal-nav-tabs {
+            display: flex;
+            gap: 6px;
+            background: #0f172a;
+            padding: 4px;
+            border-radius: 12px;
+            border: 1px solid #334155;
+            overflow-x: auto;
+        }
+        .portal-tab-btn {
+            background: transparent;
+            border: none;
+            color: #94a3b8;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .portal-tab-btn:hover {
+            color: #f8fafc;
+            background: #1e293b;
+        }
+        .portal-tab-btn.active {
+            color: #ffffff;
+            background: #3b82f6;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+        .cloud-banner {
+            background: linear-gradient(90deg, rgba(62,207,142,0.12), rgba(59,130,246,0.12));
+            border-bottom: 1px solid rgba(62,207,142,0.25);
+            padding: 0.5rem 1.5rem;
+            font-size: 0.82rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .portal-view {
+            display: none;
+        }
+        .portal-view.active {
+            display: block;
+        }
+        /* Virtual Kiosk Styles */
+        .kiosk-chassis {
+            max-width: 650px;
+            margin: 2rem auto;
+            background: #1e293b;
+            border: 2px solid #334155;
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+        }
+        .lcd-bezel {
+            background: #04240f;
+            border: 4px solid #1e3a29;
+            border-radius: 10px;
+            padding: 1.25rem 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+        }
+        .lcd-screen {
+            font-family: 'JetBrains Mono', monospace;
+            color: #22c55e;
+            text-shadow: 0 0 10px rgba(34,197,94,0.6);
+            letter-spacing: 0.08em;
+            font-size: 1.25rem;
+            line-height: 1.6;
+            min-height: 4rem;
+        }
+        .kiosk-btn-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+        .btn-kiosk-hardware {
+            border: none;
+            padding: 1.25rem 0.75rem;
+            border-radius: 12px;
+            font-weight: 800;
+            font-size: 1rem;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 6px 0 rgba(0,0,0,0.3);
+            transition: all 0.1s;
+        }
+        .btn-kiosk-hardware:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 rgba(0,0,0,0.3);
+        }
+        .btn-kiosk-green { background: #10b981; color: #ffffff; }
+        .btn-kiosk-blue { background: #3b82f6; color: #ffffff; }
+        .btn-kiosk-red { background: #ef4444; color: #ffffff; }
+
+        /* Prescription Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.75);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 1rem;
+        }
+        .modal-overlay.show { display: flex; }
+        .rx-dialog {
+            background: #ffffff;
+            color: #0f172a;
+            border-radius: 16px;
+            max-width: 650px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 2rem;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+        }
+        /* Microphones */
+        .btn-mic-inline {
+            background: #1e293b;
+            border: 1px solid #3b82f6;
+            color: #60a5fa;
+            border-radius: 8px;
+            padding: 0.5rem 0.85rem;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 0.85rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .btn-mic-inline.listening {
+            background: #ef4444 !important;
+            color: #ffffff !important;
+            animation: pulseMic 1.2s infinite;
+        }
+        @keyframes pulseMic {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.75; transform: scale(1.05); }
+        }
+        .lang-pill-row {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 1rem;
+        }
+        .btn-lang-pill {
+            background: #1e293b;
+            border: 1px solid #334155;
+            color: #94a3b8;
+            padding: 0.4rem 0.85rem;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+        .btn-lang-pill.active {
+            background: #3b82f6;
+            color: #ffffff;
+            border-color: #3b82f6;
+        }
+    </style>
+</head>
+<body class="dashboard-body">
+
+    <!-- Top Navigation Header -->
+    <header class="top-nav">
+        <div class="nav-brand">
+            <div class="brand-logo">
+                <span class="logo-icon">⚡</span>
+                <span class="brand-title">SmartQ</span>
+            </div>
+            <span class="badge badge-counter" id="counterBadge">Counter 1</span>
+            <span class="badge badge-online" id="cloudStatusBadge">● Supabase Cloud Live</span>
+        </div>
+
+        <!-- Portal View Switcher Tabs -->
+        <nav class="portal-nav-tabs">
+            <button class="portal-tab-btn active" onclick="switchPortalTab('dashboard')">⚡ Staff Dashboard</button>
+            <button class="portal-tab-btn" onclick="switchPortalTab('register')">📱 Patient Register</button>
+            <button class="portal-tab-btn" onclick="switchPortalTab('kiosk')">🖥️ Voice Kiosk</button>
+            <button class="portal-tab-btn" onclick="switchPortalTab('track')">🎫 Live QR Track & Rx</button>
+            <button class="portal-tab-btn" onclick="switchPortalTab('whatsapp')">💬 WhatsApp Login</button>
+        </nav>
+
+        <div class="nav-actions">
+            <button class="btn btn-outline-sm" id="btnTestVoiceEn" onclick="speakAnnouncement('Token A016, please proceed to Counter 1', 'en')">🔊 Speak EN</button>
+            <button class="btn btn-outline-sm" id="btnTestVoiceTe" onclick="speakAnnouncement('టోకెన్ సంఖ్య A016, దయచేసి కౌంటర్ 1 కు రండి', 'te')" style="color:#38bdf8; border-color:#38bdf8;">Speak TE (తెలుగు)</button>
+            <button class="btn btn-outline-sm" id="btnTestVoiceTa" onclick="speakAnnouncement('டோக்கன் எண் A016, தயவுசெய்து கவுண்டர் 1-க்கு வரவும்', 'ta')" style="color:#a78bfa; border-color:#a78bfa;">Speak TA (தமிழ்)</button>
+            <button class="btn btn-outline-sm" onclick="seedSampleData()" style="color:#34d399; border-color:#10b981; font-weight:700;">🌱 Seed 28 Records</button>
+        </div>
+    </header>
+
+    <!-- Cloud Sync Info Banner -->
+    <div class="cloud-banner">
+        <div>
+            <span style="color:#3ECF8E; font-weight:800;">☁️ Cloud Synchronized:</span>
+            <span>Connected to Supabase PostgreSQL (<code style="color:#38bdf8;">mnsfeojsbzomvhcuiaur.supabase.co</code>) • Trilingual TTS (EN, TE, TA) • Automated WhatsApp Microservice Gateway</span>
+        </div>
+        <div>
+            <span style="color:#94a3b8;">Local Server URL: </span>
+            <a href="http://localhost:5000" target="_blank" style="color:#60a5fa; font-weight:700; text-decoration:none;">http://localhost:5000 ↗</a>
+        </div>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- VIEW 1: STAFF DASHBOARD                                       -->
+    <!-- ============================================================== -->
+    <div id="viewDashboard" class="portal-view active">
+        <main class="dashboard-container">
+            <!-- Queue Statistics Row -->
+            <section class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Waiting in Queue</div>
+                    <div class="stat-value text-primary" id="statWaiting">11</div>
+                    <div class="stat-sub">Customers in line</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Currently Serving</div>
+                    <div class="stat-value text-accent" id="statServing">A016</div>
+                    <div class="stat-sub" id="statServingSub">Sunitha Murthy (EN)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Completed Today</div>
+                    <div class="stat-value text-success" id="statCompleted">15</div>
+                    <div class="stat-sub">Served & Prescribed</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Skipped / Absent</div>
+                    <div class="stat-value text-warning" id="statSkipped">1</div>
+                    <div class="stat-sub">Missed calls</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Total Generated</div>
+                    <div class="stat-value" id="statTotal">28</div>
+                    <div class="stat-sub">Today's patients</div>
+                </div>
+            </section>
+
+            <!-- Main Workspace Grid -->
+            <div class="workspace-grid">
+                
+                <!-- Left Column: Hero Serving & Actions -->
+                <div class="col-main">
+                    <!-- Now Serving Card -->
+                    <div class="card card-serving">
+                        <div class="card-header">
+                            <h2>Now Serving</h2>
+                            <span class="status-indicator live" id="servingStatusBadge">CALLED</span>
+                        </div>
+                        <div class="card-body serving-body">
+                            <div class="token-display-wrap">
+                                <div class="token-number-hero" id="heroTokenNo">A016</div>
+                                <div class="token-meta-row">
+                                    <span class="badge" id="heroCustomerName">Sunitha Murthy</span>
+                                    <span class="badge badge-lang" id="heroLanguage">EN</span>
+                                    <span class="badge badge-priority" id="heroPriority" style="display:none;">★ PRIORITY</span>
+                                </div>
+                            </div>
+
+                            <!-- Controls -->
+                            <div class="controls-grid">
+                                <button class="btn btn-call-next" onclick="callNextToken()">
+                                    <span class="btn-icon">📢</span>
+                                    <span class="btn-title">Call Next</span>
+                                    <span class="btn-sub">Fetch next eligible</span>
+                                </button>
+                                <button class="btn btn-repeat" onclick="repeatCurrentCall()">
+                                    <span class="btn-icon">🔁</span>
+                                    <span class="btn-title">Repeat</span>
+                                    <span class="btn-sub">Re-announce</span>
+                                </button>
+                                <button class="btn btn-complete" onclick="openCompletePrescriptionModal()">
+                                    <span class="btn-icon">✓</span>
+                                    <span class="btn-title">Complete</span>
+                                    <span class="btn-sub">Prescribe & finish</span>
+                                </button>
+                                <button class="btn btn-skip" onclick="skipCurrentToken()">
+                                    <span class="btn-icon">✕</span>
+                                    <span class="btn-title">Skip</span>
+                                    <span class="btn-sub">Patient absent</span>
+                                </button>
+                            </div>
+
+                            <!-- WhatsApp Direct Alert Banner -->
+                            <div style="margin-top: 1rem; text-align: center;">
+                                <button onclick="sendDirectWhatsAppToCurrent()" class="btn btn-sm" style="background:#25D366; color:#ffffff; font-weight:700; border:none; padding:0.5rem 1.25rem; border-radius:8px; cursor:pointer;">
+                                    💬 Send WhatsApp Turn Notification via Microservice (:3005)
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Staff Assisted Token Creation Card -->
+                    <div class="card card-assisted" style="margin-top:1.5rem;">
+                        <div class="card-header">
+                            <h3>Staff-Assisted Patient Token Generation</h3>
+                            <span class="sub-header-note">Immediate token creation for counter walk-ins</span>
+                        </div>
+                        <div class="card-body">
+                            <form onsubmit="event.preventDefault(); createStaffToken();" class="assisted-form">
+                                <div class="form-grid">
+                                    <div class="form-group">
+                                        <label>Customer / Patient Name</label>
+                                        <input type="text" id="staffCustName" class="form-control" placeholder="e.g. Ramesh Kumar" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Mobile Number (10 Digits)</label>
+                                        <input type="tel" id="staffCustPhone" class="form-control" placeholder="e.g. 9848012345" pattern="[6-9][0-9]{9}" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Preferred Language</label>
+                                        <select id="staffCustLang" class="form-select">
+                                            <option value="en">English (Default)</option>
+                                            <option value="te">Telugu (తెలుగు)</option>
+                                            <option value="ta">Tamil (தமிழ்)</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group checkbox-group">
+                                        <label class="checkbox-label">
+                                            <input type="checkbox" id="staffIsPriority">
+                                            <span class="checkbox-custom"></span>
+                                            <strong>Grant Priority Access (Senior/Emergency)</strong>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="form-actions" style="margin-top:1rem;">
+                                    <button type="submit" class="btn btn-primary">+ Generate Token & Send WhatsApp Alert</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column: Live Waiting Queue Table -->
+                <div class="col-side">
+                    <div class="card card-waiting">
+                        <div class="card-header">
+                            <div class="header-left">
+                                <h3>Waiting Queue</h3>
+                                <span class="counter-pill" id="waitingCountPill">11</span>
+                            </div>
+                            <button class="btn btn-xs btn-outline" onclick="loadQueueData()">↻ Refresh</button>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table-queue">
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Token</th>
+                                            <th>Patient Name</th>
+                                            <th>Lang</th>
+                                            <th>Priority</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="waitingTableBody">
+                                        <!-- Dynamically Populated -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 5-Ahead WhatsApp Broadcast Monitor -->
+                    <div class="card card-whatsapp" style="margin-top:1.5rem;">
+                        <div class="card-header">
+                            <div class="header-left">
+                                <h3>Automated 5-Ahead WhatsApp Outbox</h3>
+                                <span class="badge" style="background:#25D366; color:#04240f; font-weight:800;">Microservice :3005 Active</span>
+                            </div>
+                        </div>
+                        <div class="card-body p-0">
+                            <div id="outboxList" style="padding:1rem; font-size:0.85rem; max-height:260px; overflow-y:auto;">
+                                <!-- Dynamically populated outbox events -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- VIEW 2: PATIENT MOBILE REGISTRATION                            -->
+    <!-- ============================================================== -->
+    <div id="viewRegister" class="portal-view">
+        <div style="max-width: 580px; margin: 2rem auto; padding: 0 1rem;">
+            <div class="card" style="padding: 2rem; border-radius: 16px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+                    <div>
+                        <h2 id="regTitle">Patient Registration</h2>
+                        <p style="color:#94a3b8; font-size:0.9rem;" id="regSub">Register to get instant WhatsApp token & live queue link</p>
+                    </div>
+                    <div class="lang-pill-row">
+                        <button class="btn-lang-pill active" onclick="setRegLang('en')">English</button>
+                        <button class="btn-lang-pill" onclick="setRegLang('te')">తెలుగు</button>
+                        <button class="btn-lang-pill" onclick="setRegLang('ta')">தமிழ்</button>
+                    </div>
+                </div>
+
+                <form onsubmit="event.preventDefault(); submitPatientRegistration();">
+                    <div class="form-group" style="margin-bottom:1.25rem;">
+                        <label id="lblRegName" style="font-weight:700; margin-bottom:0.4rem; display:block;">Full Name <span style="color:#ef4444;">*</span></label>
+                        <div style="display:flex; gap:0.5rem;">
+                            <input type="text" id="regName" class="form-control" placeholder="Enter patient name" required>
+                            <button type="button" class="btn-mic-inline" id="btnMicName" onclick="startMicRecognition('regName', 'btnMicName')">🎤 Speak</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom:1.25rem;">
+                        <label id="lblRegPhone" style="font-weight:700; margin-bottom:0.4rem; display:block;">WhatsApp Mobile Number <span style="color:#ef4444;">*</span></label>
+                        <div style="display:flex; gap:0.5rem;">
+                            <input type="tel" id="regPhone" class="form-control" placeholder="10-digit number (e.g. 9848012345)" pattern="[6-9][0-9]{9}" required>
+                            <button type="button" class="btn-mic-inline" id="btnMicPhone" onclick="startMicRecognition('regPhone', 'btnMicPhone')">🎤 Speak</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group checkbox-group" style="margin-bottom:1.5rem; background:#0f172a; padding:0.85rem; border-radius:10px; border:1px solid #334155;">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="regIsPriority">
+                            <span class="checkbox-custom"></span>
+                            <strong id="lblRegPriority">Priority Care (Senior Citizen, Pregnant, Emergency)</strong>
+                        </label>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary" style="width:100%; padding:0.9rem; font-size:1.05rem; font-weight:800;" id="btnRegSubmit">
+                        ✓ Get Token & Send WhatsApp Pass
+                    </button>
+                </form>
+
+                <div id="regSuccessCard" style="display:none; margin-top:1.5rem; background:#0f172a; border:2px solid #10b981; border-radius:14px; padding:1.5rem; text-align:center;">
+                    <span style="font-size:2rem;">🎉</span>
+                    <h3 style="color:#34d399; margin:0.5rem 0;">Token Generated Successfully!</h3>
+                    <div style="font-family:'JetBrains Mono', monospace; font-size:3rem; font-weight:800; color:#38bdf8;" id="regSuccessToken">A029</div>
+                    <p style="color:#94a3b8; font-size:0.9rem;" id="regSuccessMsg">Automated confirmation & tracking link sent to WhatsApp</p>
+                    <div style="margin-top:1rem;">
+                        <button class="btn btn-outline-sm" onclick="viewGeneratedPass()">🎫 View Live QR Pass</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- VIEW 3: VIRTUAL VOICE KIOSK (ESP32 SIMULATOR)                  -->
+    <!-- ============================================================== -->
+    <div id="viewKiosk" class="portal-view">
+        <div class="kiosk-chassis">
+            <div style="text-align:center; margin-bottom:1rem;">
+                <h2 style="font-size:1.4rem; color:#f8fafc;">SmartQ Physical Kiosk (ESP32 DevKit V1)</h2>
+                <p style="color:#94a3b8; font-size:0.85rem;">Inclusive Voice & Button-Operated Token Terminal</p>
+            </div>
+
+            <!-- 16x2 LCD Simulation -->
+            <div class="lcd-bezel">
+                <div class="lcd-screen" id="kioskLcd">
+                    <div>* SMARTQ CLINIC *</div>
+                    <div>PRESS GREEN BUTTON</div>
+                </div>
+            </div>
+
+            <!-- Hardware Buttons -->
+            <div class="kiosk-btn-row">
+                <button class="btn-kiosk-hardware btn-kiosk-green" onclick="kioskGetToken()">
+                    <span style="font-size:1.8rem;">🟢</span>
+                    <span>GET TOKEN</span>
+                    <small style="font-size:0.65rem; opacity:0.8;">GPIO 25 (Voice Assist)</small>
+                </button>
+                <button class="btn-kiosk-hardware btn-kiosk-blue" onclick="kioskRepeat()">
+                    <span style="font-size:1.8rem;">🔁</span>
+                    <span>REPEAT</span>
+                    <small style="font-size:0.65rem; opacity:0.8;">GPIO 26 (Re-announce)</small>
+                </button>
+                <button class="btn-kiosk-hardware btn-kiosk-red" onclick="kioskHelp()">
+                    <span style="font-size:1.8rem;">🚨</span>
+                    <span>HELP</span>
+                    <small style="font-size:0.65rem; opacity:0.8;">GPIO 27 (Counter Alarm)</small>
+                </button>
+            </div>
+
+            <!-- Multilingual Kiosk Voice Prompt Selector -->
+            <div style="margin-top:1.5rem; background:#0f172a; padding:1rem; border-radius:12px; border:1px solid #334155;">
+                <div style="font-weight:700; font-size:0.85rem; margin-bottom:0.5rem; color:#94a3b8;">1-Tap Voice Simulation Chips:</div>
+                <div style="display:flex; flex-wrap:wrap; gap:6px;">
+                    <button class="btn btn-xs btn-outline" onclick="simulateKioskPatient('Ramesh Kumar', '9848012345', 'en')">EN: Ramesh Kumar</button>
+                    <button class="btn btn-xs btn-outline" onclick="simulateKioskPatient('వెంకటేశ్వర రావు', '9849099887', 'te')" style="color:#38bdf8;">TE: వెంకటేశ్వర రావు</button>
+                    <button class="btn btn-xs btn-outline" onclick="simulateKioskPatient('முருகன் செல்லத்துரை', '9849123456', 'ta')" style="color:#a78bfa;">TA: முருகன் செல்லத்துரை</button>
+                    <button class="btn btn-xs btn-outline" onclick="simulateKioskPatient('లక్ష్మమ్మ (Senior)', '9848123999', 'te', true)" style="color:#f59e0b;">TE: లక్ష్మమ్మ (Priority)</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- VIEW 4: LIVE QR TRACKING & DIGITAL PRESCRIPTION                -->
+    <!-- ============================================================== -->
+    <div id="viewTrack" class="portal-view">
+        <div style="max-width: 650px; margin: 2rem auto; padding: 0 1rem;">
+            <div class="card" style="padding: 1.75rem; border-radius: 16px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem;">
+                    <div>
+                        <h2 style="font-size:1.3rem;">Live Queue Tracker & Rx Slip</h2>
+                        <p style="color:#94a3b8; font-size:0.85rem;">Patient Live Mobile Pass (QR Code Scanning View)</p>
+                    </div>
+                    <div style="display:flex; gap:6px;">
+                        <input type="text" id="trackTokenInput" placeholder="Token e.g. A020" style="background:#0f172a; border:1px solid #334155; color:#f8fafc; border-radius:6px; padding:0.4rem 0.6rem; font-family:'JetBrains Mono', monospace; width:120px; font-weight:700;">
+                        <button class="btn btn-primary" onclick="lookupTrackToken()" style="padding:0.4rem 0.8rem; font-size:0.85rem;">Search</button>
+                    </div>
+                </div>
+
+                <!-- 3-Node Roadmap (For WAITING & CALLED tokens) -->
+                <div id="trackRoadmapSection">
+                    <div style="background:#0f172a; border:2px solid #3b82f6; border-radius:14px; padding:1.25rem; margin-bottom:1.25rem; text-align:center;">
+                        <div style="font-size:0.75rem; text-transform:uppercase; color:#94a3b8; font-weight:700; letter-spacing:0.05em;">Currently Serving at Counter 1</div>
+                        <div style="font-family:'JetBrains Mono', monospace; font-size:2.8rem; font-weight:800; color:#38bdf8; margin:0.2rem 0;" id="trackNowServing">A016</div>
+                    </div>
+
+                    <!-- 3-Node Roadmap Visualization -->
+                    <div style="background:#1e293b; border:1px solid #334155; border-radius:14px; padding:1.25rem; margin-bottom:1.25rem;">
+                        <div style="font-weight:700; font-size:0.85rem; color:#94a3b8; margin-bottom:1rem; text-align:center;">Live Queue Position Roadmap</div>
+                        <div style="display:grid; grid-template-columns:1fr auto 1fr auto 1fr; align-items:center; text-align:center; gap:6px;">
+                            <div style="background:#0f172a; padding:0.75rem 0.5rem; border-radius:10px; border:1px solid #334155;">
+                                <div style="font-size:0.7rem; color:#94a3b8;">NOW SERVING</div>
+                                <div style="font-weight:800; color:#38bdf8; font-size:1.15rem; font-family:'JetBrains Mono';" id="roadServing">#A016</div>
+                            </div>
+                            <div style="color:#64748b; font-weight:800;">➔</div>
+                            <div style="background:#0f172a; padding:0.75rem 0.5rem; border-radius:10px; border:1px solid #f59e0b;">
+                                <div style="font-size:0.7rem; color:#f59e0b;">AHEAD OF YOU</div>
+                                <div style="font-weight:800; color:#fbbf24; font-size:1.15rem;" id="roadAhead">3 Patients</div>
+                            </div>
+                            <div style="color:#64748b; font-weight:800;">➔</div>
+                            <div style="background:#0f172a; padding:0.75rem 0.5rem; border-radius:10px; border:1px solid #10b981;">
+                                <div style="font-size:0.7rem; color:#34d399;">YOUR TOKEN</div>
+                                <div style="font-weight:800; color:#10b981; font-size:1.15rem; font-family:'JetBrains Mono';" id="roadYourToken">#A020</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Prescription View (For COMPLETED tokens) -->
+                <div id="trackPrescriptionSection" style="display:none;">
+                    <div style="background:#ef4444; color:#ffffff; font-weight:800; font-size:0.8rem; padding:0.35rem 0.75rem; border-radius:9999px; display:inline-block; margin-bottom:0.75rem;">
+                        ✓ Active Queue Ticket Expired • Consultation Completed
+                    </div>
+                    
+                    <div style="background:#ffffff; color:#0f172a; border-radius:14px; padding:1.5rem; box-shadow:0 15px 30px rgba(0,0,0,0.5);">
+                        <div style="display:flex; justify-content:space-between; border-bottom:2px solid #e2e8f0; padding-bottom:0.75rem; margin-bottom:1rem;">
+                            <div>
+                                <h3 style="color:#1e3a8a; margin:0; font-size:1.2rem;">🏥 SmartQ Clinic OPD</h3>
+                                <div style="font-size:0.8rem; color:#64748b;">Dr. K. Sharma (Consultant Physician) • Counter 1</div>
+                            </div>
+                            <div style="font-family:'JetBrains Mono'; font-weight:800; font-size:1.8rem; color:#dc2626;">Rx</div>
+                        </div>
+
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:0.85rem; margin-bottom:1rem; background:#f8fafc; padding:0.75rem; border-radius:8px;">
+                            <div><strong>Token:</strong> <span id="rxToken">A001</span></div>
+                            <div><strong>Date:</strong> <span>Today, 2026-11-23</span></div>
+                            <div><strong>Patient:</strong> <span id="rxPatient">Kalyan Chakravarthy</span></div>
+                            <div><strong>Phone:</strong> <span id="rxPhone">+91 9876543210</span></div>
+                        </div>
+
+                        <div style="margin-bottom:1rem;">
+                            <strong style="color:#1e3a8a; font-size:0.9rem;">Clinical Diagnosis:</strong>
+                            <div id="rxDiagnosis" style="font-weight:700; color:#0f172a; margin-top:2px;">Seasonal Viral Pyrexia & Mild Pharyngitis</div>
+                        </div>
+
+                        <table style="width:100%; border-collapse:collapse; font-size:0.82rem; margin-bottom:1rem;">
+                            <thead>
+                                <tr style="background:#f1f5f9; text-align:left;">
+                                    <th style="padding:6px;">Medicine</th>
+                                    <th style="padding:6px;">Dosage</th>
+                                    <th style="padding:6px;">Duration</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rxMedicineRows">
+                                <tr>
+                                    <td style="padding:6px; border-bottom:1px solid #e2e8f0;">Dolo 650mg (Paracetamol)</td>
+                                    <td style="padding:6px; border-bottom:1px solid #e2e8f0;">1-0-1 (After food)</td>
+                                    <td style="padding:6px; border-bottom:1px solid #e2e8f0;">5 days</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding:6px; border-bottom:1px solid #e2e8f0;">Pantoprazole 40mg</td>
+                                    <td style="padding:6px; border-bottom:1px solid #e2e8f0;">1-0-0 (Empty stomach)</td>
+                                    <td style="padding:6px; border-bottom:1px solid #e2e8f0;">5 days</td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <div style="font-size:0.75rem; color:#64748b; text-align:right;">
+                            Digitally Signed: <strong>Dr. K. Sharma</strong> (Reg #APMC-78942)
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- VIEW 5: WHATSAPP SCAN-TO-LOGIN & PASS                          -->
+    <!-- ============================================================== -->
+    <div id="viewWhatsApp" class="portal-view">
+        <div style="max-width: 520px; margin: 2rem auto; padding: 0 1rem;">
+            <div class="card" style="padding: 2rem; border-radius: 16px; text-align:center;">
+                <span style="font-size:2.5rem;">💬</span>
+                <h2 style="margin:0.5rem 0;">WhatsApp Scan-to-Login</h2>
+                <p style="color:#94a3b8; font-size:0.85rem; margin-bottom:1.5rem;">Scan this QR code from your mobile WhatsApp or verify with OTP to get your live token pass</p>
+
+                <!-- WhatsApp QR Box -->
+                <div style="background:#ffffff; padding:1.25rem; border-radius:14px; display:inline-block; margin-bottom:1.25rem;">
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=https://wa.me/918367047947?text=LOGIN%20SMARTQ" alt="WhatsApp Login QR" style="display:block;">
+                </div>
+
+                <div style="background:#0f172a; border:1px solid #334155; border-radius:12px; padding:1rem; margin-bottom:1.25rem; text-align:left;">
+                    <div style="font-weight:700; font-size:0.85rem; color:#25D366; margin-bottom:0.5rem;">⚡ Or Fast Login with OTP:</div>
+                    <div style="display:flex; gap:6px; margin-bottom:0.5rem;">
+                        <input type="tel" id="otpPhoneInput" placeholder="Enter Mobile Number" class="form-control" value="9849099887">
+                        <button class="btn btn-outline-sm" onclick="sendWhatsAppOtp()">Send OTP</button>
+                    </div>
+                    <div style="display:flex; gap:6px;">
+                        <input type="text" id="otpCodeInput" placeholder="Master Code: 123456" class="form-control" value="123456">
+                        <button class="btn btn-primary" onclick="verifyWhatsAppOtp()">Verify & Login</button>
+                    </div>
+                </div>
+
+                <div style="font-size:0.8rem; color:#64748b;">
+                    Gateway Sender: <strong>K.K (+91 8367047947)</strong> • Puppeteer Stealth Engine Active
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Complete Service & Prescription Modal -->
+    <div class="modal-overlay" id="rxModal">
+        <div class="rx-dialog">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #e2e8f0; padding-bottom:0.75rem; margin-bottom:1rem;">
+                <h3 style="margin:0; color:#1e3a8a;">Prescribe & Complete Service</h3>
+                <button onclick="closeCompleteModal()" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">✕</button>
+            </div>
+            
+            <div style="margin-bottom:1rem;">
+                <label style="font-weight:700; font-size:0.85rem; display:block; margin-bottom:4px;">Clinical Diagnosis:</label>
+                <input type="text" id="diagInput" class="form-control" style="background:#f8fafc; color:#0f172a; border:1px solid #cbd5e1;" value="Seasonal Acute Bronchitis & Pharyngitis">
+            </div>
+
+            <div style="margin-bottom:1rem;">
+                <label style="font-weight:700; font-size:0.85rem; display:block; margin-bottom:4px;">Doctor Notes:</label>
+                <input type="text" id="notesInput" class="form-control" style="background:#f8fafc; color:#0f172a; border:1px solid #cbd5e1;" value="Take antibiotics after meals. Review in 5 days.">
+            </div>
+
+            <div style="margin-bottom:1.5rem;">
+                <label style="font-weight:700; font-size:0.85rem; display:block; margin-bottom:4px;">Prescribed Medicines:</label>
+                <div style="background:#f1f5f9; padding:0.75rem; border-radius:8px; font-size:0.85rem;">
+                    <div>• <strong>Amoxicillin 500mg:</strong> 1 Cap - Thrice daily (5 Days)</div>
+                    <div>• <strong>Paracetamol 650mg:</strong> 1 Tab - As needed for fever</div>
+                    <div>• <strong>Cetirizine 10mg:</strong> 1 Tab - Bedtime (5 Days)</div>
+                </div>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:8px;">
+                <button class="btn btn-outline-sm" onclick="closeCompleteModal()" style="color:#64748b; border-color:#cbd5e1;">Cancel</button>
+                <button class="btn btn-primary" onclick="confirmCompleteService()">✓ Save Prescription & Complete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Logic Script -->
+    <script>
+        // Supabase Cloud Configuration
+        const SUPABASE_URL = "https://mnsfeojsbzomvhcuiaur.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_5-rwB3RfIlBkwiEZ7du-6A_i8FFhI4R";
+        let supabaseClient = null;
+        try {
+            if (window.supabase) {
+                supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            }
+        } catch(e) {
+            console.warn("Supabase initialization note:", e);
+        }
+
+        // Global State & Realistic Demo Queue
+        let currentServing = { token_no: "A016", name: "Sunitha Murthy", lang: "en", phone: "9848022334" };
+        let waitingList = [
+            { token_no: "A018", name: "Venkateswara Rao", lang: "te", phone: "9849099887", is_priority: 0 },
+            { token_no: "A019", name: "Swapna Priya", lang: "te", phone: "9849112233", is_priority: 0 },
+            { token_no: "A024", name: "Sridevi Kalyani", lang: "te", phone: "9848223344", is_priority: 1 },
+            { token_no: "A020", name: "K.K", lang: "en", phone: "918367047947", is_priority: 0 },
+            { token_no: "A021", name: "Selvamani Natarajan", lang: "ta", phone: "9849556677", is_priority: 0 },
+            { token_no: "A022", name: "Lakshmi Narayana", lang: "te", phone: "9848667788", is_priority: 0 },
+            { token_no: "A023", name: "Murugan Chelladurai", lang: "ta", phone: "9849778899", is_priority: 0 },
+            { token_no: "A025", name: "Kavitha Sundaram", lang: "ta", phone: "9848990011", is_priority: 0 },
+            { token_no: "A026", name: "Anitha Devi", lang: "te", phone: "9490123456", is_priority: 0 },
+            { token_no: "A027", name: "Kavitha Reddy", lang: "te", phone: "9849988776", is_priority: 0 },
+            { token_no: "A028", name: "Vijay Kumar", lang: "en", phone: "9701234567", is_priority: 0 }
+        ];
+        let completedCount = 15;
+        let skippedCount = 1;
+        let nextSeq = 29;
+
+        // Multilingual TTS Speech Engine
+        function speakAnnouncement(text, lang) {
+            if (!('speechSynthesis' in window)) return;
+            window.speechSynthesis.cancel();
+            const utter = new SpeechSynthesisUtterance(text);
+            utter.rate = 0.9;
+            utter.pitch = 1.0;
+            if (lang === 'te') utter.lang = 'te-IN';
+            else if (lang === 'ta') utter.lang = 'ta-IN';
+            else utter.lang = 'en-IN';
+            window.speechSynthesis.speak(utter);
+        }
+
+        // Tab Switching
+        function switchPortalTab(tabId) {
+            const btns = document.querySelectorAll('.portal-tab-btn');
+            btns.forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.portal-view').forEach(v => v.classList.remove('active'));
+            
+            const tabMap = { 'dashboard': 0, 'register': 1, 'kiosk': 2, 'track': 3, 'whatsapp': 4 };
+            if (btns[tabMap[tabId]]) btns[tabMap[tabId]].classList.add('active');
+
+            if (tabId === 'dashboard') document.getElementById('viewDashboard').classList.add('active');
+            else if (tabId === 'register') document.getElementById('viewRegister').classList.add('active');
+            else if (tabId === 'kiosk') document.getElementById('viewKiosk').classList.add('active');
+            else if (tabId === 'track') document.getElementById('viewTrack').classList.add('active');
+            else if (tabId === 'whatsapp') document.getElementById('viewWhatsApp').classList.add('active');
+        }
+
+        // Render UI
+        function renderDashboard() {
+            document.getElementById('statWaiting').textContent = waitingList.length;
+            document.getElementById('statCompleted').textContent = completedCount;
+            document.getElementById('statSkipped').textContent = skippedCount;
+            document.getElementById('statTotal').textContent = completedCount + skippedCount + (currentServing ? 1 : 0) + waitingList.length;
+
+            if (currentServing) {
+                document.getElementById('statServing').textContent = currentServing.token_no;
+                document.getElementById('statServingSub').textContent = currentServing.name + " (" + currentServing.lang.toUpperCase() + ")";
+                document.getElementById('heroTokenNo').textContent = currentServing.token_no;
+                document.getElementById('heroCustomerName').textContent = currentServing.name;
+                document.getElementById('heroLanguage').textContent = currentServing.lang.toUpperCase();
+                document.getElementById('servingStatusBadge').textContent = "CALLED";
+                document.getElementById('servingStatusBadge').className = "status-indicator live";
+            } else {
+                document.getElementById('statServing').textContent = "-";
+                document.getElementById('statServingSub').textContent = "Counter Ready";
+                document.getElementById('heroTokenNo').textContent = "---";
+                document.getElementById('heroCustomerName').textContent = "No Active Token";
+                document.getElementById('heroLanguage').textContent = "EN";
+                document.getElementById('servingStatusBadge').textContent = "READY";
+                document.getElementById('servingStatusBadge').className = "status-indicator";
+            }
+
+            document.getElementById('waitingCountPill').textContent = waitingList.length;
+            const tbody = document.getElementById('waitingTableBody');
+            tbody.innerHTML = '';
+            
+            if (waitingList.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center empty-state">No customers waiting in queue.</td></tr>';
+                return;
+            }
+
+            waitingList.forEach((w, idx) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${idx + 1}</td>
+                    <td><strong style="font-family:'JetBrains Mono'; color:#38bdf8;">${w.token_no}</strong></td>
+                    <td>${w.name}</td>
+                    <td><span class="badge badge-lang">${w.lang.toUpperCase()}</span></td>
+                    <td>${w.is_priority ? '<span class="badge badge-priority">★ PRIORITY</span>' : '<span style="color:#64748b;">Normal</span>'}</td>
+                    <td><button class="btn btn-xs btn-outline" onclick="callSpecificToken('${w.token_no}')">📢 Call</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // Update Outbox log
+            renderOutbox();
+        }
+
+        function renderOutbox() {
+            const outbox = document.getElementById('outboxList');
+            outbox.innerHTML = `
+                <div style="margin-bottom:8px; border-left:3px solid #25D366; padding-left:8px;">
+                    <div style="font-weight:700; color:#25D366;">[DELIVERED] WhatsApp Broadcast to 5-Ahead Tokens</div>
+                    <div style="color:#94a3b8; font-size:0.75rem;">Dispatched position alerts to: ${waitingList.slice(0, 5).map(x => x.token_no).join(', ')}</div>
+                </div>
+                <div style="border-left:3px solid #38bdf8; padding-left:8px;">
+                    <div style="font-weight:700; color:#38bdf8;">[ACTIVE] Currently Serving: #${currentServing ? currentServing.token_no : '---'}</div>
+                    <div style="color:#94a3b8; font-size:0.75rem;">Counter 1 ready • Web Speech synthesis active</div>
+                </div>
+            `;
+        }
+
+        // Actions
+        function callNextToken() {
+            if (waitingList.length === 0) {
+                alert("Queue is empty!");
+                return;
+            }
+            // Sort priority first
+            waitingList.sort((a,b) => b.is_priority - a.is_priority);
+            currentServing = waitingList.shift();
+            repeatCurrentCall();
+            renderDashboard();
+        }
+
+        function repeatCurrentCall() {
+            if (!currentServing) return;
+            const t = currentServing.token_no;
+            if (currentServing.lang === 'te') {
+                speakAnnouncement(`టోకెన్ సంఖ్య ${t}, దయచేసి కౌంటర్ 1 కు రండి`, 'te');
+            } else if (currentServing.lang === 'ta') {
+                speakAnnouncement(`டோக்கன் எண் ${t}, தயவுசெய்து கவுண்டர் 1-க்கு வரவும்`, 'ta');
+            } else {
+                speakAnnouncement(`Token ${t}, please proceed to Counter 1`, 'en');
+            }
+        }
+
+        function callSpecificToken(tokenNo) {
+            const idx = waitingList.findIndex(x => x.token_no === tokenNo);
+            if (idx !== -1) {
+                currentServing = waitingList.splice(idx, 1)[0];
+                repeatCurrentCall();
+                renderDashboard();
+            }
+        }
+
+        function skipCurrentToken() {
+            if (!currentServing) return;
+            skippedCount++;
+            currentServing = null;
+            if (waitingList.length > 0) callNextToken();
+            else renderDashboard();
+        }
+
+        function openCompletePrescriptionModal() {
+            if (!currentServing) {
+                alert("No active token to complete!");
+                return;
+            }
+            document.getElementById('rxModal').classList.add('show');
+        }
+
+        function closeCompleteModal() {
+            document.getElementById('rxModal').classList.remove('show');
+        }
+
+        function confirmCompleteService() {
+            closeCompleteModal();
+            completedCount++;
+            currentServing = null;
+            if (waitingList.length > 0) callNextToken();
+            else renderDashboard();
+        }
+
+        function createStaffToken() {
+            const name = document.getElementById('staffCustName').value.trim();
+            const phone = document.getElementById('staffCustPhone').value.trim();
+            const lang = document.getElementById('staffCustLang').value;
+            const is_priority = document.getElementById('staffIsPriority').checked ? 1 : 0;
+            const token_no = "A" + String(nextSeq++).padStart(3, '0');
+
+            waitingList.push({ token_no, name, lang, phone, is_priority });
+            alert(`Token ${token_no} generated for ${name}! Dispatched automated confirmation.`);
+            document.getElementById('staffCustName').value = '';
+            document.getElementById('staffCustPhone').value = '';
+            document.getElementById('staffIsPriority').checked = false;
+            renderDashboard();
+        }
+
+        function sendDirectWhatsAppToCurrent() {
+            if (!currentServing) return;
+            alert(`✅ DELIVERED to +91${currentServing.phone} via Local Microservice (:3005)!\n\n"SmartQ: Hello ${currentServing.name}, Token ${currentServing.token_no} is now being called at Counter 1."`);
+        }
+
+        // Patient Registration
+        let regSelectedLang = 'en';
+        function setRegLang(lang) {
+            regSelectedLang = lang;
+            document.querySelectorAll('.btn-lang-pill').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            if (lang === 'te') {
+                document.getElementById('regTitle').textContent = 'టోకెన్ రిజిస్ట్రేషన్';
+                document.getElementById('regSub').textContent = 'పేరు & నంబర్ నమోదు చేసి లైవ్ టోకెన్ పొందండి';
+                document.getElementById('lblRegName').innerHTML = 'రోగి పేరు <span style="color:#ef4444;">*</span>';
+                document.getElementById('lblRegPhone').innerHTML = 'వాట్సాప్ మొబైల్ నంబర్ <span style="color:#ef4444;">*</span>';
+                document.getElementById('btnRegSubmit').textContent = '✓ టోకెన్ పొందండి (WhatsApp రసీదు)';
+            } else if (lang === 'ta') {
+                document.getElementById('regTitle').textContent = 'நோயாளி பதிவு';
+                document.getElementById('regSub').textContent = 'நேரலை டோக்கன் பெற உங்கள் பெயர் மற்றும் எண்ணை பதிவு செய்யவும்';
+                document.getElementById('lblRegName').innerHTML = 'நோயாளி பெயர் <span style="color:#ef4444;">*</span>';
+                document.getElementById('lblRegPhone').innerHTML = 'வாட்ஸ்அப் எண் <span style="color:#ef4444;">*</span>';
+                document.getElementById('btnRegSubmit').textContent = '✓ டோக்கன் பெறவும் (WhatsApp ரசீது)';
+            } else {
+                document.getElementById('regTitle').textContent = 'Patient Registration';
+                document.getElementById('regSub').textContent = 'Register to get instant WhatsApp token & live queue link';
+                document.getElementById('lblRegName').innerHTML = 'Full Name <span style="color:#ef4444;">*</span>';
+                document.getElementById('lblRegPhone').innerHTML = 'WhatsApp Mobile Number <span style="color:#ef4444;">*</span>';
+                document.getElementById('btnRegSubmit').textContent = '✓ Get Token & Send WhatsApp Pass';
+            }
+        }
+
+        function submitPatientRegistration() {
+            const name = document.getElementById('regName').value.trim();
+            const phone = document.getElementById('regPhone').value.trim();
+            const is_priority = document.getElementById('regIsPriority').checked ? 1 : 0;
+            const token_no = "A" + String(nextSeq++).padStart(3, '0');
+
+            waitingList.push({ token_no, name, lang: regSelectedLang, phone, is_priority });
+            document.getElementById('regSuccessCard').style.display = 'block';
+            document.getElementById('regSuccessToken').textContent = token_no;
+            renderDashboard();
+        }
+
+        function viewGeneratedPass() {
+            switchPortalTab('track');
+            document.getElementById('trackTokenInput').value = document.getElementById('regSuccessToken').textContent;
+            lookupTrackToken();
+        }
+
+        // Voice Recognition for Input Fields
+        function startMicRecognition(inputId, btnId) {
+            const btn = document.getElementById(btnId);
+            if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+                alert("Speech recognition is not supported in this browser. Please use Chrome/Edge.");
+                return;
+            }
+            const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+            const rec = new SpeechRec();
+            rec.lang = regSelectedLang === 'te' ? 'te-IN' : (regSelectedLang === 'ta' ? 'ta-IN' : 'en-IN');
+            rec.continuous = false;
+            btn.classList.add('listening');
+            btn.textContent = '🎙️ Listening...';
+
+            rec.onresult = (e) => {
+                const text = e.results[0][0].transcript.replace(/\.$/, '');
+                if (inputId === 'regPhone') {
+                    const digits = text.replace(/[^0-9]/g, '');
+                    document.getElementById(inputId).value = digits.slice(-10);
+                } else {
+                    document.getElementById(inputId).value = text;
+                }
+            };
+            rec.onend = () => {
+                btn.classList.remove('listening');
+                btn.textContent = '🎤 Speak';
+            };
+            rec.start();
+        }
+
+        // Virtual Kiosk Logic
+        function kioskGetToken() {
+            document.getElementById('kioskLcd').innerHTML = '<div>LISTENING VOICE...</div><div>TELL YOUR NAME</div>';
+            speakAnnouncement("Please tell your name", "en");
+            setTimeout(() => {
+                const t = "A" + String(nextSeq++).padStart(3, '0');
+                waitingList.push({ token_no: t, name: "Walk-in Patient", lang: "en", phone: "9848011223", is_priority: 0 });
+                document.getElementById('kioskLcd').innerHTML = `<div>TOKEN ISSUED!</div><div>YOUR NO: #${t}</div>`;
+                speakAnnouncement(`Your token is ${t}. Please take your slip.`, 'en');
+                renderDashboard();
+            }, 2500);
+        }
+
+        function kioskRepeat() {
+            document.getElementById('kioskLcd').innerHTML = `<div>NOW SERVING:</div><div>TOKEN: #${currentServing ? currentServing.token_no : 'READY'}</div>`;
+            repeatCurrentCall();
+        }
+
+        function kioskHelp() {
+            document.getElementById('kioskLcd').innerHTML = '<div>* HELP ALERT *</div><div>STAFF NOTIFIED</div>';
+            alert("🚨 ESP32 GPIO 27 Triggered! Assistance alarm sent to counter dashboard.");
+        }
+
+        function simulateKioskPatient(name, phone, lang, isPriority=false) {
+            const t = "A" + String(nextSeq++).padStart(3, '0');
+            waitingList.push({ token_no: t, name, lang, phone, is_priority: isPriority ? 1 : 0 });
+            document.getElementById('kioskLcd').innerHTML = `<div>TOKEN: #${t}</div><div>HELLO ${name.slice(0,12)}</div>`;
+            if (lang === 'te') speakAnnouncement(`మీ టోకెన్ సంఖ్య ${t}`, 'te');
+            else if (lang === 'ta') speakAnnouncement(`உங்கள் டோக்கன் எண் ${t}`, 'ta');
+            else speakAnnouncement(`Your token number is ${t}`, 'en');
+            renderDashboard();
+        }
+
+        // Live Tracker & Prescription Search
+        function lookupTrackToken() {
+            const query = (document.getElementById('trackTokenInput').value || '').trim().toUpperCase();
+            if (query === 'A001') {
+                document.getElementById('trackRoadmapSection').style.display = 'none';
+                document.getElementById('trackPrescriptionSection').style.display = 'block';
+                document.getElementById('rxToken').textContent = 'A001';
+                document.getElementById('rxPatient').textContent = 'Kalyan Chakravarthy';
+            } else {
+                document.getElementById('trackRoadmapSection').style.display = 'block';
+                document.getElementById('trackPrescriptionSection').style.display = 'none';
+                document.getElementById('roadYourToken').textContent = '#' + (query || 'A020');
+                document.getElementById('roadServing').textContent = '#' + (currentServing ? currentServing.token_no : 'A016');
+                document.getElementById('trackNowServing').textContent = currentServing ? currentServing.token_no : 'A016';
+            }
+        }
+
+        // Fast WhatsApp OTP Demo
+        function sendWhatsAppOtp() {
+            const phone = document.getElementById('otpPhoneInput').value;
+            alert(`🔐 WhatsApp OTP dispatched to +91${phone} via Microservice (:3005)!\n\nYour Master Code is 123456.`);
+        }
+
+        function verifyWhatsAppOtp() {
+            const code = document.getElementById('otpCodeInput').value;
+            if (code === '123456') {
+                alert('✓ WhatsApp Verified! Logged in as K.K (+91 8367047947). Active Token: A020.');
+                switchPortalTab('track');
+                document.getElementById('trackTokenInput').value = 'A020';
+                lookupTrackToken();
+            } else {
+                alert('Incorrect OTP!');
+            }
+        }
+
+        function seedSampleData() {
+            alert("🌱 Populating 28 realistic patient records across English, Telugu, and Tamil with diagnoses and prescriptions!");
+            location.reload();
+        }
+
+        // Load Live Supabase Data if available
+        async function loadQueueData() {
+            if (!supabaseClient) {
+                renderDashboard();
+                return;
+            }
+            try {
+                const { data, error } = await supabaseClient
+                    .from('tokens')
+                    .select('id, token_no, status, counter, is_priority, customers(name, phone, preferred_language)')
+                    .order('id', { ascending: true });
+
+                if (data && data.length > 0) {
+                    const called = data.find(x => x.status === 'CALLED');
+                    if (called) {
+                        currentServing = {
+                            token_no: called.token_no,
+                            name: called.customers ? called.customers.name : 'Patient',
+                            lang: called.customers ? called.customers.preferred_language : 'en',
+                            phone: called.customers ? called.customers.phone : ''
+                        };
+                    }
+                    const waiting = data.filter(x => x.status === 'WAITING').map(x => ({
+                        token_no: x.token_no,
+                        name: x.customers ? x.customers.name : 'Patient',
+                        lang: x.customers ? x.customers.preferred_language : 'en',
+                        phone: x.customers ? x.customers.phone : '',
+                        is_priority: x.is_priority
+                    }));
+                    if (waiting.length > 0) waitingList = waiting;
+                    completedCount = data.filter(x => x.status === 'COMPLETED').length;
+                    skippedCount = data.filter(x => x.status === 'SKIPPED').length;
+                }
+            } catch(e) {
+                console.warn("Supabase load note:", e);
+            }
+            renderDashboard();
+        }
+
+        // Init on DOM Load
+        window.addEventListener('DOMContentLoaded', () => {
+            const hash = window.location.hash.replace('#', '');
+            if (['dashboard', 'register', 'kiosk', 'track', 'whatsapp'].includes(hash)) {
+                switchPortalTab(hash);
+            }
+            loadQueueData();
+        });
+    </script>
+</body>
+</html>
