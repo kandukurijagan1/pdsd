@@ -200,3 +200,54 @@ This guarantees senior citizens, pregnant women, and medical emergencies are ser
 
 **Q4. How does the ESP32 communicate with the Flask backend?**  
 *A.* The ESP32 connects over local Wi-Fi and issues lightweight HTTP REST GET/POST requests (`/api/device/status`, `/api/device/help`, `/api/device/repeat`). Responses are parsed using `ArduinoJson` in non-blocking loops.
+
+---
+
+## 13. Live Real-Time Product Architecture (Cloud + Local WhatsApp)
+
+SmartQ operates as an end-to-end production prototype combining a globally accessible cloud web app with a zero-cost local WhatsApp microservice:
+
+```
++--------------------------------------------------------------------+
+|  1. Public Mobile Web (GitHub Pages)                               |
+|     https://kandukurijagan1.github.io/pdsd/                        |
+|     - Trilingual Registration Form (English, Telugu, Tamil)        |
+|     - Live Mobile QR Queue Tracking & Digital Prescription Pass    |
++---------------------------------+----------------------------------+
+                                  |
+                                  | 1. Direct REST Insert
+                                  v
++--------------------------------------------------------------------+
+|  2. Supabase Cloud Database                                        |
+|     - Tables: customers, tokens, notification_outbox               |
+|     - Status: 'PENDING' WhatsApp Notification Queued               |
++---------------------------------+----------------------------------+
+                                  |
+                                  | 2. Sub-second Polling/Sync
+                                  v
++--------------------------------------------------------------------+
+|  3. Local Hospital Machine (SmartQ Realtime Bridge)                |
+|     - Python Bridge Daemon (realtime_bridge.py / app.py)           |
+|     - Detects 'PENDING' cloud outbox notifications                 |
+|     - Syncs online tokens into local SQLite smartq.db              |
++---------------------------------+----------------------------------+
+                                  |
+                                  | 3. Local HTTP POST (:3005)
+                                  v
++--------------------------------------------------------------------+
+|  4. Local WhatsApp Microservice (:3005)                            |
+|     - Puppeteer Stealth WhatsApp Gateway                           |
+|     - Authenticated Sender Session: K.K (+91 8367047947)           |
+|     - Instant background message dispatch (zero browser popups)    |
++---------------------------------+----------------------------------+
+                                  |
+                                  | 4. WhatsApp Cloud Protocol
+                                  v
++--------------------------------------------------------------------+
+|  5. Patient's WhatsApp Phone                                       |
+|     - Instant confirmation ticket with trilingual text             |
+|     - Direct live tracking link: track.html?token=...              |
+|     - 5-ahead, 4-ahead, 3-ahead proactive queue warnings           |
+|     - Digital prescription & medicine instructions upon completion  |
++--------------------------------------------------------------------+
+```

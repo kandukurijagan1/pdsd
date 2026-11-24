@@ -2,8 +2,12 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="refresh" content="0; url=./index.html#register">
     <title>Redirecting to SmartQ Registration...</title>
+    <script>
+        const search = window.location.search || '';
+        window.location.replace('./index.html' + search + '#register');
+    </script>
+    <meta http-equiv="refresh" content="0; url=./index.html#register">
 </head>
 <body style="background:#0f172a; color:#f8fafc; font-family:sans-serif; text-align:center; padding-top:20vh;">
     <h2>Loading SmartQ Patient Registration...</h2>

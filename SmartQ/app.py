@@ -2099,12 +2099,31 @@ def api_supabase_schema():
         return jsonify({'success': True, 'schema': content}), 200
     return jsonify({'success': False, 'message': 'Schema file not found'}), 404
 
+@app.route('/api/realtime-bridge/status', methods=['GET'])
+def api_realtime_bridge_status():
+    """Return status of the Realtime Cloud-to-Local WhatsApp Bridge."""
+    from realtime_bridge import realtime_bridge
+    return jsonify({
+        'running': realtime_bridge.running,
+        'processed_count': realtime_bridge.processed_count,
+        'last_poll': realtime_bridge.last_poll_time.isoformat() if realtime_bridge.last_poll_time else None
+    })
+
 # ---------------------------------------------------------
 # Application Entry Point
 # ---------------------------------------------------------
 
 if __name__ == '__main__':
     init_db()
+    
+    # Start Realtime Cloud-to-Local WhatsApp Bridge
+    try:
+        from realtime_bridge import realtime_bridge
+        if os.environ.get('WERKZEUG_RUN_MAIN') == 'true' or not app.debug:
+            realtime_bridge.start()
+    except Exception as e:
+        print(f"[Realtime Bridge] Could not start bridge: {e}")
+
     lan_ip = get_lan_ip()
     print("=" * 65)
     print(" SmartQ - Smart Queue Management & Automated Token Calling")
