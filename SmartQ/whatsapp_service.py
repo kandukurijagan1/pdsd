@@ -416,6 +416,13 @@ def send_whatsapp_notification(db_conn, token_id, phone, message_text, event_typ
     """, (token_id, f"WhatsApp {event_type} auto-dispatched to {e164_phone}"))
     db_conn.commit()
 
+    # Mirror outbox dispatch to Supabase Cloud
+    try:
+        from supabase_service import sync_outbox_to_supabase
+        sync_outbox_to_supabase(token_id, e164_phone, message_text, event_type, dispatch_status)
+    except Exception:
+        pass
+
     return {
         'success': True,
         'outbox_id': outbox_id,
