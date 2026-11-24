@@ -671,6 +671,14 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Live Patient Token QR Code Pass -->
+                    <div style="background:#0f172a; border:1px solid #334155; border-radius:14px; padding:1.25rem; text-align:center; margin-bottom:1rem;">
+                        <div style="font-size:0.75rem; text-transform:uppercase; color:#94a3b8; font-weight:700; margin-bottom:0.6rem;">📱 Show this QR Code at Counter 1 / OPD Scanner</div>
+                        <img id="trackPassQr" src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://kandukurijagan1.github.io/pdsd/track.html?token=A029" style="width:130px; height:130px; border-radius:10px; background:#ffffff; padding:6px; box-shadow:0 4px 15px rgba(0,0,0,0.5); display:inline-block;" alt="Patient Token QR Pass">
+                        <div style="font-family:'JetBrains Mono'; font-weight:800; color:#38bdf8; font-size:1.15rem; margin-top:0.5rem;" id="trackPassQrLabel">Token Pass #A029</div>
+                        <div style="color:#64748b; font-size:0.75rem; margin-top:0.25rem;">Scan this QR code with any mobile camera to view real-time queue position</div>
+                    </div>
                 </div>
 
                 <!-- Prescription View (For COMPLETED tokens) -->
@@ -1157,41 +1165,54 @@
 
             if (supabaseClient) {
                 try {
-                    // 1. Get highest current token in Supabase
-                    const { data: maxToks } = await supabaseClient
+                    // 1. Fetch all tokens to find true max token number & max token ID
+                    const { data: allToks, error: tokErr } = await supabaseClient
                         .from('tokens')
-                        .select('id, token_no')
+                        .select('id, token_no');
+
+                    let maxId = 50;
+                    let maxNum = 28;
+                    if (allToks && allToks.length > 0) {
+                        allToks.forEach(t => {
+                            if (t.id && t.id > maxId) maxId = t.id;
+                            const num = parseInt(String(t.token_no).replace(/\D/g, ''), 10);
+                            if (!isNaN(num) && num > maxNum) maxNum = num;
+                        });
+                    }
+                    newId = maxId + 1;
+                    token_no = "A" + String(maxNum + 1).padStart(3, '0');
+
+                    // Fetch highest customer id
+                    const { data: maxCust } = await supabaseClient
+                        .from('customers')
+                        .select('id')
                         .order('id', { ascending: false })
                         .limit(1);
 
-                    if (maxToks && maxToks.length > 0) {
-                        const lastId = maxToks[0].id;
-                        newId = lastId + 1;
-                        const lastNo = maxToks[0].token_no;
-                        const lastNum = parseInt(lastNo.replace(/\D/g, ''), 10) || 28;
-                        token_no = "A" + String(lastNum + 1).padStart(3, '0');
-                    }
+                    const newCustId = (maxCust && maxCust.length > 0 && maxCust[0].id) ? (maxCust[0].id + 1) : newId;
 
                     // 2. Insert customer into Supabase Cloud
-                    await supabaseClient.table('customers').insert({
-                        id: newId,
+                    const custRes = await supabaseClient.from('customers').insert({
+                        id: newCustId,
                         name: name,
                         phone: phone,
                         preferred_language: lang,
                         created_at: new Date().toISOString()
                     });
+                    if (custRes.error) console.error("Cust insert error:", custRes.error);
 
                     // 3. Insert token into Supabase Cloud
-                    await supabaseClient.table('tokens').insert({
+                    const tokInsertRes = await supabaseClient.from('tokens').insert({
                         id: newId,
                         token_no: token_no,
-                        customer_id: newId,
+                        customer_id: newCustId,
                         status: 'WAITING',
                         is_priority: is_priority,
                         source: 'web-online',
                         counter: 'Counter 1',
                         created_at: new Date().toISOString()
                     });
+                    if (tokInsertRes.error) console.error("Token insert error:", tokInsertRes.error);
 
                     // 4. Format Trilingual WhatsApp Message
                     const trackUrl = `https://kandukurijagan1.github.io/pdsd/track.html?token=${token_no}`;
@@ -1206,7 +1227,7 @@
 
                     // 5. Insert into notification_outbox as PENDING
                     // Local machine's Realtime Bridge detects this and sends it immediately via port 3005!
-                    await supabaseClient.table('notification_outbox').insert({
+                    const outboxRes = await supabaseClient.from('notification_outbox').insert({
                         token_id: newId,
                         phone: phone,
                         message_text: waMsg,
@@ -1215,6 +1236,7 @@
                         status: 'PENDING',
                         created_at: new Date().toISOString()
                     });
+                    if (outboxRes.error) console.error("Outbox insert error:", outboxRes.error);
 
                     console.log("[SmartQ Cloud] Successfully queued WhatsApp alert in Supabase for local microservice bridge!");
                 } catch(err) {
@@ -1351,6 +1373,13 @@
                             if (aheadEl) {
                                 aheadEl.textContent = ahead === 0 ? "You're Next!" : `${ahead} Ahead (~${ahead * 3}m)`;
                             }
+
+                            // Update QR Code pass
+                            const qrEl = document.getElementById('trackPassQr');
+                            if (qrEl) qrEl.src = 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=' + encodeURIComponent('https://kandukurijagan1.github.io/pdsd/track.html?token=' + data.token_no);
+                            const qrLbl = document.getElementById('trackPassQrLabel');
+                            if (qrLbl) qrLbl.textContent = 'Token Pass #' + data.token_no;
+
                             return;
                         }
                     }
@@ -1371,6 +1400,10 @@
                 document.getElementById('roadYourToken').textContent = '#' + (query || 'A020');
                 document.getElementById('roadServing').textContent = '#' + (currentServing ? currentServing.token_no : 'A016');
                 document.getElementById('trackNowServing').textContent = currentServing ? currentServing.token_no : 'A016';
+                const qrEl = document.getElementById('trackPassQr');
+                if (qrEl) qrEl.src = 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=' + encodeURIComponent('https://kandukurijagan1.github.io/pdsd/track.html?token=' + (query || 'A020'));
+                const qrLbl = document.getElementById('trackPassQrLabel');
+                if (qrLbl) qrLbl.textContent = 'Token Pass #' + (query || 'A020');
             }
         }
 
