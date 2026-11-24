@@ -202,6 +202,27 @@ class RealtimeWhatsAppBridge:
                         tok.get('created_at', datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
                     ))
                     print(f"[Realtime Bridge] 📥 New online patient token #{tok['token_no']} ({cust.get('name') if cust else 'Patient'}) synced to local counter queue!")
+
+                # Synchronize CALLED, COMPLETED, and SKIPPED token status transitions from Cloud to Local SQLite
+                res_updates = self.supabase_client.table('tokens') \
+                    .select('id, status, counter, called_at, completed_at') \
+                    .in_('status', ['CALLED', 'COMPLETED', 'SKIPPED']) \
+                    .execute()
+
+                for u_tok in (res_updates.data or []):
+                    cur.execute("""
+                        UPDATE tokens 
+                        SET status = ?, counter = coalesce(?, counter),
+                            called_at = coalesce(?, called_at), completed_at = coalesce(?, completed_at)
+                        WHERE id = ? AND status != ?
+                    """, (
+                        u_tok['status'],
+                        u_tok.get('counter'),
+                        u_tok.get('called_at'),
+                        u_tok.get('completed_at'),
+                        u_tok['id'],
+                        u_tok['status']
+                    ))
                 conn.commit()
         except Exception:
             pass

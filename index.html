@@ -1137,6 +1137,11 @@
             if (supabaseClient && currentServing.id) {
                 try {
                     await supabaseClient.from('tokens').update({
+                        status: 'COMPLETED',
+                        completed_at: new Date().toISOString()
+                    }).eq('status', 'CALLED').eq('counter', 'Counter 1');
+
+                    await supabaseClient.from('tokens').update({
                         status: 'CALLED',
                         called_at: new Date().toISOString(),
                         counter: 'Counter 1'
@@ -1549,29 +1554,37 @@
                             document.getElementById('trackPrescriptionSection').style.display = 'none';
                             document.getElementById('roadYourToken').textContent = '#' + data.token_no;
 
-                            // Fetch currently serving token from Supabase
+                            // Fetch currently serving token at Counter 1 from Supabase
                             const { data: curToks } = await supabaseClient
                                 .from('tokens')
                                 .select('token_no')
                                 .eq('status', 'CALLED')
-                                .order('id', { ascending: false })
+                                .eq('counter', 'Counter 1')
+                                .order('called_at', { ascending: false })
                                 .limit(1);
 
-                            const servingNo = (curToks && curToks.length > 0) ? curToks[0].token_no : (currentServing ? currentServing.token_no : 'Counter Ready');
+                            const servingNo = (curToks && curToks.length > 0) ? curToks[0].token_no : (currentServing ? currentServing.token_no : 'A016');
                             document.getElementById('roadServing').textContent = servingNo.startsWith('#') ? servingNo : '#' + servingNo;
                             document.getElementById('trackNowServing').textContent = servingNo.replace('#', '');
 
-                            // Count tokens waiting ahead
-                            const { count } = await supabaseClient
+                            // Calculate true priority-first queue position
+                            const { data: allWaiting } = await supabaseClient
                                 .from('tokens')
-                                .select('*', { count: 'exact', head: true })
-                                .eq('status', 'WAITING')
-                                .lt('id', data.id);
+                                .select('id, is_priority')
+                                .eq('status', 'WAITING');
 
-                            const ahead = (count !== null && count !== undefined) ? count : 0;
+                            let ahead = 0;
+                            if (allWaiting && allWaiting.length > 0) {
+                                if (data.is_priority === 1) {
+                                    ahead = allWaiting.filter(t => t.is_priority === 1 && t.id < data.id).length;
+                                } else {
+                                    ahead = allWaiting.filter(t => t.is_priority === 1 || (t.is_priority === 0 && t.id < data.id)).length;
+                                }
+                            }
+
                             const aheadEl = document.getElementById('roadAhead');
                             if (aheadEl) {
-                                aheadEl.textContent = ahead === 0 ? "You're Next!" : `${ahead} Ahead (~${ahead * 3}m)`;
+                                aheadEl.textContent = ahead === 0 ? "You're Next!" : `${ahead} Ahead (~${Math.max(ahead * 3, 3)}m)`;
                             }
 
                             // Update QR Code pass
@@ -1639,11 +1652,14 @@
             try {
                 const { data, error } = await supabaseClient
                     .from('tokens')
-                    .select('id, token_no, status, counter, is_priority, customers(name, phone, preferred_language)')
+                    .select('id, token_no, status, counter, is_priority, called_at, customers(name, phone, preferred_language)')
                     .order('id', { ascending: true });
 
                 if (data && data.length > 0) {
-                    const called = data.find(x => x.status === 'CALLED');
+                    const called = data
+                        .filter(x => x.status === 'CALLED' && (!x.counter || x.counter === 'Counter 1'))
+                        .sort((a,b) => new Date(b.called_at || 0) - new Date(a.called_at || 0))[0];
+
                     if (called) {
                         currentServing = {
                             id: called.id,
@@ -1661,6 +1677,8 @@
                         phone: x.customers ? x.customers.phone : '',
                         is_priority: x.is_priority
                     }));
+                    // Sort priority first, then FIFO by ID
+                    waiting.sort((a, b) => (b.is_priority || 0) - (a.is_priority || 0) || (a.id || 0) - (b.id || 0));
                     if (waiting.length > 0) waitingList = waiting;
                     completedCount = data.filter(x => x.status === 'COMPLETED').length;
                     skippedCount = data.filter(x => x.status === 'SKIPPED').length;
