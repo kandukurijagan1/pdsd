@@ -115,9 +115,9 @@ class RealtimeWhatsAppBridge:
 
             except Exception as e:
                 # print error quietly without crashing
-                time.sleep(2.0)
+                time.sleep(1.0)
 
-            time.sleep(1.2)
+            time.sleep(0.7)
 
     def _process_pending_notifications(self):
         """Check Supabase Cloud notification_outbox for PENDING alerts and send them locally."""

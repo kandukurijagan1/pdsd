@@ -257,9 +257,49 @@
             color: #ffffff;
             border-color: #3b82f6;
         }
+
+        /* Realtime Animations & Pulse Indicators */
+        @keyframes pulseTurn {
+            0%, 100% { transform: scale(1); box-shadow: 0 10px 30px rgba(52, 211, 153, 0.35); }
+            50% { transform: scale(1.02); box-shadow: 0 16px 48px rgba(52, 211, 153, 0.7); }
+        }
+        @keyframes pulseCall {
+            0%, 100% { border-color: #3b82f6; box-shadow: 0 0 20px rgba(59, 130, 246, 0.3); }
+            50% { border-color: #34d399; box-shadow: 0 0 50px rgba(52, 211, 153, 0.85); }
+        }
+        .pulse-call-highlight {
+            animation: pulseCall 1.2s ease-in-out 4;
+        }
+        .live-pulse-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #10b981;
+            box-shadow: 0 0 10px #10b981;
+            animation: pulseDot 1.5s infinite;
+        }
+        @keyframes pulseDot {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.35); opacity: 0.6; }
+        }
+        .turn-card-action-btn {
+            background: #ffffff;
+            color: #065f46;
+            font-size: 1.15rem;
+            font-weight: 800;
+            padding: 0.55rem 1.85rem;
+            border-radius: 9999px;
+            display: inline-block;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+            letter-spacing: 0.04em;
+        }
     </style>
 </head>
 <body class="dashboard-body">
+
+    <!-- Live Toast Container for Realtime Events -->
+    <div id="liveToastContainer" style="position:fixed; top:75px; right:20px; z-index:99999; display:flex; flex-direction:column; gap:8px; pointer-events:none; max-width:360px;"></div>
 
     <!-- Top Navigation Header -->
     <header class="top-nav">
@@ -506,9 +546,12 @@
                         <div style="font-size:0.8rem; color:#94a3b8;">Principles of Digital Systems and Design (PDSD) • Live Waiting Hall Display</div>
                     </div>
                 </div>
-                <div style="text-align:right;">
+                <div style="text-align:right; display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
                     <div style="font-family:'JetBrains Mono'; font-size:1.6rem; font-weight:800; color:#38bdf8;" id="tvClockText">12:00:00 PM</div>
-                    <div style="font-size:0.8rem; color:#94a3b8;">Multilingual Audio PA System Active</div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span style="font-size:0.75rem; color:#94a3b8; display:flex; align-items:center; gap:5px;"><span class="live-pulse-dot"></span> Live PA System</span>
+                        <button onclick="enableTvAudio()" id="btnTvAudio" style="background:#1e293b; border:1px solid #3b82f6; color:#38bdf8; padding:0.25rem 0.65rem; border-radius:6px; font-size:0.72rem; cursor:pointer; font-weight:700;">🔊 Test Audio</button>
+                    </div>
                 </div>
             </div>
 
@@ -717,8 +760,29 @@
                     </div>
                 </div>
 
-                <!-- 3-Node Roadmap (For WAITING & CALLED tokens) -->
+                <!-- Live Turn Callout (Prominent alert when status === 'CALLED') -->
+                <div id="trackYourTurnSection" style="display:none; margin-bottom:1.25rem;">
+                    <div style="background:linear-gradient(135deg, #064e3b, #047857); border:3px solid #34d399; border-radius:18px; padding:2rem 1.25rem; text-align:center; box-shadow:0 15px 40px rgba(52,211,153,0.35); animation:pulseTurn 2s infinite;">
+                        <div style="font-size:2.8rem; line-height:1; margin-bottom:0.4rem;">🔔 📢 🩺</div>
+                        <div style="font-size:1.4rem; font-weight:900; color:#ffffff; text-transform:uppercase; letter-spacing:0.06em;">It's Your Turn Now!</div>
+                        <div style="font-size:0.85rem; color:#a7f3d0; margin:0.3rem 0;">మీ వంతు వచ్చింది • உங்கள் முறை வந்தது</div>
+                        <div style="font-family:'JetBrains Mono', monospace; font-size:4.2rem; font-weight:900; color:#ffffff; text-shadow:0 0 30px rgba(255,255,255,0.7); margin:0.4rem 0;" id="trackTurnToken">#A016</div>
+                        <div style="margin-top:0.75rem;">
+                            <span class="turn-card-action-btn" id="trackTurnCounter">PLEASE PROCEED TO COUNTER 1</span>
+                        </div>
+                        <div style="font-size:0.85rem; color:#d1fae5; margin-top:0.9rem; line-height:1.4;">
+                            Doctor & OPD medical staff are ready to attend to you.<br>Please show this screen or your token slip at the room entrance.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3-Node Roadmap (For WAITING tokens) -->
                 <div id="trackRoadmapSection">
+                    <div style="display:flex; justify-content:center; align-items:center; gap:6px; font-size:0.75rem; color:#34d399; margin-bottom:0.85rem; font-weight:700;">
+                        <span class="live-pulse-dot"></span>
+                        <span>Realtime Cloud Synchronized • Live Position Updates Automatically</span>
+                    </div>
+
                     <div style="background:#0f172a; border:2px solid #3b82f6; border-radius:14px; padding:1.25rem; margin-bottom:1.25rem; text-align:center;">
                         <div style="font-size:0.75rem; text-transform:uppercase; color:#94a3b8; font-weight:700; letter-spacing:0.05em;">Currently Serving at Counter 1</div>
                         <div style="font-family:'JetBrains Mono', monospace; font-size:2.8rem; font-weight:800; color:#38bdf8; margin:0.2rem 0;" id="trackNowServing">A016</div>
@@ -1109,11 +1173,6 @@
 
         // Actions
         async function callNextToken() {
-            if (waitingList.length === 0) {
-                alert("Queue is empty! All patients have been served.");
-                return;
-            }
-
             // 1. If currently serving a token, mark it completed in Supabase
             if (currentServing && currentServing.id && supabaseClient) {
                 try {
@@ -1129,9 +1188,51 @@
                 completedCount++;
             }
 
-            // 2. Sort priority-first, then FIFO
-            waitingList.sort((a,b) => (b.is_priority || 0) - (a.is_priority || 0));
-            currentServing = waitingList.shift();
+            // 2. Fetch the top priority-first FIFO waiting token directly from Supabase
+            if (supabaseClient) {
+                try {
+                    const { data: topWaiting } = await supabaseClient
+                        .from('tokens')
+                        .select('id, token_no, status, is_priority, customers(name, phone, preferred_language)')
+                        .eq('status', 'WAITING')
+                        .order('is_priority', { ascending: false })
+                        .order('id', { ascending: true })
+                        .limit(1);
+
+                    if (topWaiting && topWaiting.length > 0) {
+                        const nextTok = topWaiting[0];
+                        currentServing = {
+                            id: nextTok.id,
+                            token_no: nextTok.token_no,
+                            name: nextTok.customers ? nextTok.customers.name : 'Patient',
+                            lang: nextTok.customers ? nextTok.customers.preferred_language : 'en',
+                            phone: nextTok.customers ? nextTok.customers.phone : '',
+                            is_priority: nextTok.is_priority
+                        };
+                    } else if (waitingList.length > 0) {
+                        waitingList.sort((a,b) => (b.is_priority || 0) - (a.is_priority || 0) || (a.id || 0) - (b.id || 0));
+                        currentServing = waitingList.shift();
+                    } else {
+                        alert("Queue is empty! All patients have been served.");
+                        return;
+                    }
+                } catch(e) {
+                    if (waitingList.length > 0) {
+                        waitingList.sort((a,b) => (b.is_priority || 0) - (a.is_priority || 0));
+                        currentServing = waitingList.shift();
+                    } else {
+                        alert("Queue is empty! All patients have been served.");
+                        return;
+                    }
+                }
+            } else {
+                if (waitingList.length === 0) {
+                    alert("Queue is empty! All patients have been served.");
+                    return;
+                }
+                waitingList.sort((a,b) => (b.is_priority || 0) - (a.is_priority || 0));
+                currentServing = waitingList.shift();
+            }
 
             // 3. Mark newly called token in Supabase Cloud
             if (supabaseClient && currentServing.id) {
@@ -1171,7 +1272,23 @@
                     }
 
                     // 4. Automated 5-Consecutive Queue Ahead WhatsApp Broadcast!
-                    const next5 = waitingList.slice(0, 5);
+                    const { data: next5Rows } = await supabaseClient
+                        .from('tokens')
+                        .select('id, token_no, is_priority, customers(name, phone, preferred_language)')
+                        .eq('status', 'WAITING')
+                        .neq('id', currentServing.id)
+                        .order('is_priority', { ascending: false })
+                        .order('id', { ascending: true })
+                        .limit(5);
+
+                    const next5 = (next5Rows && next5Rows.length > 0) ? next5Rows.map(r => ({
+                        id: r.id,
+                        token_no: r.token_no,
+                        name: r.customers ? r.customers.name : 'Patient',
+                        lang: r.customers ? r.customers.preferred_language : 'en',
+                        phone: r.customers ? r.customers.phone : ''
+                    })) : waitingList.slice(0, 5);
+
                     const dispatchedOutbox = [];
 
                     for (let i = 0; i < next5.length; i++) {
@@ -1213,6 +1330,7 @@
 
             repeatCurrentCall();
             renderDashboard();
+            loadQueueData(true);
         }
 
         function repeatCurrentCall() {
@@ -1450,6 +1568,7 @@
             }
 
             waitingList.push({ id: newId, token_no, name, lang, phone, is_priority });
+            try { localStorage.setItem('smartq_last_token', token_no); } catch(e) {}
             document.getElementById('regSuccessCard').style.display = 'block';
             document.getElementById('regSuccessToken').textContent = token_no;
             document.getElementById('regSuccessMsg').innerHTML = `✅ Registered in Cloud Database!<br>WhatsApp confirmation alert dispatched to <strong>+91 ${phone}</strong> via local microservice (:3005).`;
@@ -1527,10 +1646,89 @@
             renderDashboard();
         }
 
+        // Toast Notifications for Live Realtime Events
+        function showToast(msg, borderColor = '#38bdf8') {
+            const container = document.getElementById('liveToastContainer');
+            if (!container) return;
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                background: #1e293b;
+                color: #f8fafc;
+                border-left: 4px solid ${borderColor};
+                border-radius: 8px;
+                padding: 0.65rem 1rem;
+                font-size: 0.82rem;
+                font-weight: 700;
+                box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                pointer-events: auto;
+                transition: opacity 0.3s ease, transform 0.3s ease;
+                transform: translateX(20px);
+                opacity: 0;
+            `;
+            toast.innerHTML = msg;
+            container.appendChild(toast);
+            requestAnimationFrame(() => {
+                toast.style.transform = 'translateX(0)';
+                toast.style.opacity = '1';
+            });
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(-10px)';
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        function playNotificationBeep() {
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.25);
+            } catch(e) {}
+        }
+
+        function enableTvAudio() {
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                playHospitalChime();
+                const btn = document.getElementById('btnTvAudio');
+                if (btn) {
+                    btn.innerHTML = '✓ Audio PA Active';
+                    btn.style.color = '#34d399';
+                    btn.style.borderColor = '#10b981';
+                }
+                showToast("🔊 Audio PA System Unmuted & Active", "#10b981");
+            } catch(e) {
+                console.warn("Audio unlock note:", e);
+            }
+        }
+
         // Live Tracker & Prescription Search
-        async function lookupTrackToken() {
-            const query = (document.getElementById('trackTokenInput').value || '').trim().toUpperCase();
-            if (!query) return;
+        let lastTrackedStatus = {};
+
+        async function lookupTrackToken(isSilent = false) {
+            let query = (document.getElementById('trackTokenInput').value || '').trim().toUpperCase();
+            if (!query) {
+                const saved = localStorage.getItem('smartq_last_token');
+                if (saved) {
+                    query = saved;
+                    document.getElementById('trackTokenInput').value = saved;
+                } else {
+                    return;
+                }
+            }
 
             if (supabaseClient) {
                 try {
@@ -1541,17 +1739,38 @@
                         .maybeSingle();
 
                     if (data) {
+                        const prevStatus = lastTrackedStatus[query];
+                        lastTrackedStatus[query] = data.status;
+
                         if (data.status === 'COMPLETED') {
                             document.getElementById('trackRoadmapSection').style.display = 'none';
+                            document.getElementById('trackYourTurnSection').style.display = 'none';
                             document.getElementById('trackPrescriptionSection').style.display = 'block';
                             document.getElementById('rxToken').textContent = data.token_no;
                             document.getElementById('rxPatient').textContent = data.customers ? data.customers.name : 'Patient';
                             document.getElementById('rxPhone').textContent = data.customers ? ('+91 ' + data.customers.phone) : 'Not Provided';
                             if (data.diagnosis) document.getElementById('rxDiagnosis').textContent = data.diagnosis;
                             return;
-                        } else {
-                            document.getElementById('trackRoadmapSection').style.display = 'block';
+                        } else if (data.status === 'CALLED') {
+                            // 🎉 YOUR TURN NOW!
+                            document.getElementById('trackRoadmapSection').style.display = 'none';
                             document.getElementById('trackPrescriptionSection').style.display = 'none';
+                            document.getElementById('trackYourTurnSection').style.display = 'block';
+                            document.getElementById('trackTurnToken').textContent = '#' + data.token_no;
+                            document.getElementById('trackTurnCounter').textContent = 'PLEASE PROCEED TO ' + (data.counter || 'COUNTER 1').toUpperCase();
+
+                            // Trigger sound & vibration if just called
+                            if (prevStatus && prevStatus !== 'CALLED') {
+                                playHospitalChime();
+                                if (navigator.vibrate) navigator.vibrate([300, 150, 300, 150, 500]);
+                                showToast(`📢 It's Your Turn! Token #${data.token_no} called at Counter 1!`, '#34d399');
+                            }
+                            return;
+                        } else {
+                            // WAITING in queue
+                            document.getElementById('trackYourTurnSection').style.display = 'none';
+                            document.getElementById('trackPrescriptionSection').style.display = 'none';
+                            document.getElementById('trackRoadmapSection').style.display = 'block';
                             document.getElementById('roadYourToken').textContent = '#' + data.token_no;
 
                             // Fetch currently serving token at Counter 1 from Supabase
@@ -1563,7 +1782,7 @@
                                 .order('called_at', { ascending: false })
                                 .limit(1);
 
-                            const servingNo = (curToks && curToks.length > 0) ? curToks[0].token_no : (currentServing ? currentServing.token_no : 'A016');
+                            const servingNo = (curToks && curToks.length > 0) ? curToks[0].token_no : (currentServing ? currentServing.token_no : '---');
                             document.getElementById('roadServing').textContent = servingNo.startsWith('#') ? servingNo : '#' + servingNo;
                             document.getElementById('trackNowServing').textContent = servingNo.replace('#', '');
 
@@ -1597,17 +1816,19 @@
                         }
                     }
                 } catch(e) {
-                    console.warn("Supabase lookup note:", e);
+                    if (!isSilent) console.warn("Supabase lookup note:", e);
                 }
             }
 
             // Fallback in-memory
             if (query === 'A001') {
+                document.getElementById('trackYourTurnSection').style.display = 'none';
                 document.getElementById('trackRoadmapSection').style.display = 'none';
                 document.getElementById('trackPrescriptionSection').style.display = 'block';
                 document.getElementById('rxToken').textContent = 'A001';
                 document.getElementById('rxPatient').textContent = 'Kalyan Chakravarthy';
             } else {
+                document.getElementById('trackYourTurnSection').style.display = 'none';
                 document.getElementById('trackRoadmapSection').style.display = 'block';
                 document.getElementById('trackPrescriptionSection').style.display = 'none';
                 document.getElementById('roadYourToken').textContent = '#' + (query || 'A020');
@@ -1643,8 +1864,10 @@
             location.reload();
         }
 
-        // Load Live Supabase Data if available
-        async function loadQueueData() {
+        // Load Live Supabase Data
+        let lastCalledTokenNo = null;
+
+        async function loadQueueData(isSilent = false) {
             if (!supabaseClient) {
                 renderDashboard();
                 return;
@@ -1656,9 +1879,19 @@
                     .order('id', { ascending: true });
 
                 if (data && data.length > 0) {
+                    // Update nextSeq dynamically from max token number
+                    let maxNum = 28;
+                    data.forEach(t => {
+                        const num = parseInt(String(t.token_no).replace(/\D/g, ''), 10);
+                        if (!isNaN(num) && num > maxNum) maxNum = num;
+                    });
+                    nextSeq = maxNum + 1;
+
                     const called = data
                         .filter(x => x.status === 'CALLED' && (!x.counter || x.counter === 'Counter 1'))
                         .sort((a,b) => new Date(b.called_at || 0) - new Date(a.called_at || 0))[0];
+
+                    const prevServing = currentServing ? currentServing.token_no : null;
 
                     if (called) {
                         currentServing = {
@@ -1668,7 +1901,25 @@
                             lang: called.customers ? called.customers.preferred_language : 'en',
                             phone: called.customers ? called.customers.phone : ''
                         };
+
+                        // TV Display auto-alert if newly called
+                        if (prevServing && prevServing !== currentServing.token_no) {
+                            const curTab = document.querySelector('.portal-view.active');
+                            if (curTab && curTab.id === 'viewDisplay') {
+                                playHospitalChime();
+                                const heroCard = document.getElementById('tvHeroCard');
+                                if (heroCard) {
+                                    heroCard.classList.remove('pulse-call-highlight');
+                                    void heroCard.offsetWidth;
+                                    heroCard.classList.add('pulse-call-highlight');
+                                }
+                                speakAnnouncement(`Token ${currentServing.token_no}, please proceed to Counter 1`, currentServing.lang || 'en');
+                            }
+                        }
+                    } else {
+                        currentServing = null;
                     }
+
                     const waiting = data.filter(x => x.status === 'WAITING').map(x => ({
                         id: x.id,
                         token_no: x.token_no,
@@ -1679,15 +1930,126 @@
                     }));
                     // Sort priority first, then FIFO by ID
                     waiting.sort((a, b) => (b.is_priority || 0) - (a.is_priority || 0) || (a.id || 0) - (b.id || 0));
-                    if (waiting.length > 0) waitingList = waiting;
+                    waitingList = waiting;
                     completedCount = data.filter(x => x.status === 'COMPLETED').length;
                     skippedCount = data.filter(x => x.status === 'SKIPPED').length;
                 }
             } catch(e) {
-                console.warn("Supabase load note:", e);
+                if (!isSilent) console.warn("Supabase load note:", e);
             }
             renderDashboard();
+
+            // Refresh mobile tracker silently if open
+            const trackInput = document.getElementById('trackTokenInput');
+            if (trackInput && trackInput.value.trim()) {
+                lookupTrackToken(true);
+            }
         }
+
+        // Realtime WebSockets & Live Push Synchronizer
+        let realtimeChannel = null;
+
+        function initRealtimeSubscriptions() {
+            if (!supabaseClient) {
+                console.warn("[Realtime] Supabase client not initialized.");
+                return;
+            }
+
+            try {
+                realtimeChannel = supabaseClient.channel('smartq-cloud-realtime')
+                    .on('postgres_changes', {
+                        event: '*',
+                        schema: 'public',
+                        table: 'tokens'
+                    }, (payload) => {
+                        console.log('⚡ [Realtime Cloud Sync] Event on tokens table:', payload.eventType, payload.new);
+                        handleRealtimeTokenChange(payload);
+                    })
+                    .on('postgres_changes', {
+                        event: '*',
+                        schema: 'public',
+                        table: 'notification_outbox'
+                    }, (payload) => {
+                        console.log('⚡ [Realtime Cloud Sync] Outbox Event:', payload.eventType, payload.new?.status);
+                        if (payload.new && payload.new.status === 'DELIVERED') {
+                            showToast(`✅ WhatsApp Alert DELIVERED to +91 ${payload.new.phone}`, '#10b981');
+                        }
+                    })
+                    .subscribe((status) => {
+                        console.log('⚡ [Realtime Cloud Sync] Connection Status:', status);
+                        const badge = document.getElementById('cloudStatusBadge');
+                        if (badge) {
+                            if (status === 'SUBSCRIBED') {
+                                badge.innerHTML = '● Realtime Live Sync';
+                                badge.style.color = '#34d399';
+                                badge.title = 'Connected to Supabase Cloud WebSockets (Instant Realtime Push)';
+                            } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+                                badge.innerHTML = '● Auto-Polling Sync';
+                                badge.style.color = '#fbbf24';
+                            }
+                        }
+                    });
+            } catch(err) {
+                console.warn("[Realtime Cloud Sync] Subscription setup note:", err);
+            }
+        }
+
+        async function handleRealtimeTokenChange(payload) {
+            const ev = payload.eventType;
+            const newRow = payload.new;
+
+            if (ev === 'INSERT') {
+                showToast(`🎟️ New Patient Registered: #${newRow.token_no}`, '#38bdf8');
+                playNotificationBeep();
+            } else if (ev === 'UPDATE' && newRow) {
+                if (newRow.status === 'CALLED' && newRow.token_no !== lastCalledTokenNo) {
+                    lastCalledTokenNo = newRow.token_no;
+                    showToast(`📢 Now Calling: #${newRow.token_no} at Counter 1`, '#f59e0b');
+
+                    const curTab = document.querySelector('.portal-view.active');
+                    if (curTab && curTab.id === 'viewDisplay') {
+                        playHospitalChime();
+                        const heroCard = document.getElementById('tvHeroCard');
+                        if (heroCard) {
+                            heroCard.classList.remove('pulse-call-highlight');
+                            void heroCard.offsetWidth;
+                            heroCard.classList.add('pulse-call-highlight');
+                        }
+                        speakAnnouncement(`Token ${newRow.token_no}, please proceed to Counter 1`, 'en');
+                    }
+                }
+            }
+
+            // Immediately refresh data across all screens
+            await loadQueueData(true);
+            const trackInp = document.getElementById('trackTokenInput');
+            if (trackInp && trackInp.value.trim()) {
+                await lookupTrackToken(true);
+            }
+        }
+
+        // Realtime Clock Ticker (Every 1 Second)
+        setInterval(() => {
+            const clockEl = document.getElementById('tvClockText');
+            if (clockEl) {
+                clockEl.textContent = new Date().toLocaleTimeString('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: true
+                });
+            }
+        }, 1000);
+
+        // Resilient Fallback Polling (Every 2.5 Seconds for background tabs & mobile sleep)
+        setInterval(() => {
+            const activeView = document.querySelector('.portal-view.active');
+            if (activeView && activeView.id === 'viewTrack') {
+                lookupTrackToken(true);
+            } else if (activeView && (activeView.id === 'viewDashboard' || activeView.id === 'viewDisplay')) {
+                loadQueueData(true);
+            }
+        }, 2500);
 
         // Init on DOM Load
         window.addEventListener('DOMContentLoaded', () => {
@@ -1706,7 +2068,10 @@
             } else if (['dashboard', 'display', 'register', 'kiosk', 'track', 'whatsapp'].includes(hash)) {
                 switchPortalTab(hash);
             }
+
+            // Load initial queue data and start Realtime WebSocket Channel
             loadQueueData();
+            initRealtimeSubscriptions();
         });
     </script>
 </body>
