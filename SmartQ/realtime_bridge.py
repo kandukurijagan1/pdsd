@@ -148,8 +148,12 @@ class RealtimeWhatsAppBridge:
                         .eq('id', notif_id) \
                         .execute()
                 else:
-                    print(f"[Realtime Bridge] ⚠️ WhatsApp dispatch to +91{phone} temporarily failed: {reason}")
-                    # Keep as PENDING or retry next cycle
+                    print(f"[Realtime Bridge] ⚠️ WhatsApp dispatch to +91{phone} failed: {reason}")
+                    # Mark as FAILED in Supabase Cloud so an invalid phone number never blocks subsequent queue notifications
+                    self.supabase_client.table('notification_outbox') \
+                        .update({'status': 'FAILED'}) \
+                        .eq('id', notif_id) \
+                        .execute()
         except Exception as e:
             pass
 
