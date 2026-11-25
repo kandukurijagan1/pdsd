@@ -1148,9 +1148,9 @@
                 alert("No active patient is currently called to transfer!");
                 return;
             }
-            const notes = prompt(`Transfer Token #${currentServing.token_no} (${currentServing.name}) to ${targetCounter}.\nEnter consultation notes or instructions:`, "Doctor consultation complete, forwarded for medicine dispensing");
+            const notes = prompt(`Transfer Token #${formatOnlyNumber(currentServing.token_no)} (${currentServing.name}) to ${targetCounter}.\nEnter consultation notes or instructions:`, "Doctor consultation complete, forwarded for medicine dispensing");
             if (notes === null) return;
-            alert(`✅ Token #${currentServing.token_no} transferred to ${targetCounter}!\n\nAutomated WhatsApp notice dispatched:\n"SmartQ: Dr. Sharma has forwarded your prescription to ${targetCounter}. Please proceed to ${targetCounter}."`);
+            alert(`✅ Token #${formatOnlyNumber(currentServing.token_no)} transferred to ${targetCounter}!\n\nAutomated WhatsApp notice dispatched:\n"SmartQ: Dr. Sharma has forwarded your prescription to ${targetCounter}. Please proceed to ${targetCounter}."`);
             
             const transferredTok = {
                 token_no: currentServing.token_no,
@@ -1169,10 +1169,10 @@
             outbox.innerHTML = `
                 <div style="margin-bottom:8px; border-left:3px solid #25D366; padding-left:8px;">
                     <div style="font-weight:700; color:#25D366;">[DELIVERED] WhatsApp Broadcast to 5-Ahead Tokens</div>
-                    <div style="color:#94a3b8; font-size:0.75rem;">Dispatched position alerts to: ${waitingList.slice(0, 5).map(x => x.token_no).join(', ')}</div>
+                    <div style="color:#94a3b8; font-size:0.75rem;">Dispatched position alerts to: ${waitingList.slice(0, 5).map(x => '#' + formatOnlyNumber(x.token_no)).join(', ')}</div>
                 </div>
                 <div style="border-left:3px solid #38bdf8; padding-left:8px;">
-                    <div style="font-weight:700; color:#38bdf8;">[ACTIVE] Currently Serving: #${currentServing ? currentServing.token_no : '---'}</div>
+                    <div style="font-weight:700; color:#38bdf8;">[ACTIVE] Currently Serving: #${currentServing ? formatOnlyNumber(currentServing.token_no) : '---'}</div>
                     <div style="color:#94a3b8; font-size:0.75rem;">Counter 1 ready • Web Speech synthesis active</div>
                 </div>
             `;
@@ -1490,7 +1490,7 @@
             const is_priority = document.getElementById('regIsPriority').checked ? 1 : 0;
             const lang = regSelectedLang || 'en';
 
-            let token_no = "A" + String(nextSeq++).padStart(3, '0');
+            let token_no = String(nextSeq++);
             let newId = Date.now() % 100000000;
 
             if (supabaseClient) {
@@ -1510,7 +1510,7 @@
                         });
                     }
                     newId = maxId + 1;
-                    token_no = "A" + String(maxNum + 1).padStart(3, '0');
+                    token_no = String(maxNum + 1);
 
                     // Fetch highest customer id
                     const { data: maxCust } = await supabaseClient
@@ -1625,7 +1625,7 @@
             document.getElementById('kioskLcd').innerHTML = '<div>LISTENING VOICE...</div><div>TELL YOUR NAME</div>';
             speakAnnouncement("Please tell your name", "en");
             setTimeout(() => {
-                const t = "A" + String(nextSeq++).padStart(3, '0');
+                const t = String(nextSeq++);
                 waitingList.push({ token_no: t, name: "Walk-in Patient", lang: "en", phone: "9848011223", is_priority: 0 });
                 document.getElementById('kioskLcd').innerHTML = `<div>TOKEN ISSUED!</div><div>YOUR NO: #${t}</div>`;
                 speakAnnouncement(`Your token is ${t}. Please take your slip.`, 'en');
@@ -1634,7 +1634,7 @@
         }
 
         function kioskRepeat() {
-            document.getElementById('kioskLcd').innerHTML = `<div>NOW SERVING:</div><div>TOKEN: #${currentServing ? currentServing.token_no : 'READY'}</div>`;
+            document.getElementById('kioskLcd').innerHTML = `<div>NOW SERVING:</div><div>TOKEN: #${currentServing ? formatOnlyNumber(currentServing.token_no) : 'READY'}</div>`;
             repeatCurrentCall();
         }
 
@@ -1644,7 +1644,7 @@
         }
 
         function simulateKioskPatient(name, phone, lang, isPriority=false) {
-            const t = "A" + String(nextSeq++).padStart(3, '0');
+            const t = String(nextSeq++);
             waitingList.push({ token_no: t, name, lang, phone, is_priority: isPriority ? 1 : 0 });
             document.getElementById('kioskLcd').innerHTML = `<div>TOKEN: #${t}</div><div>HELLO ${name.slice(0,12)}</div>`;
             if (lang === 'te') speakAnnouncement(`మీ టోకెన్ సంఖ్య ${t}`, 'te');
@@ -1753,7 +1753,7 @@
                             document.getElementById('trackRoadmapSection').style.display = 'none';
                             document.getElementById('trackYourTurnSection').style.display = 'none';
                             document.getElementById('trackPrescriptionSection').style.display = 'block';
-                            document.getElementById('rxToken').textContent = data.token_no;
+                            document.getElementById('rxToken').textContent = formatOnlyNumber(data.token_no);
                             document.getElementById('rxPatient').textContent = data.customers ? data.customers.name : 'Patient';
                             document.getElementById('rxPhone').textContent = data.customers ? ('+91 ' + data.customers.phone) : 'Not Provided';
                             if (data.diagnosis) document.getElementById('rxDiagnosis').textContent = data.diagnosis;
@@ -1763,14 +1763,14 @@
                             document.getElementById('trackRoadmapSection').style.display = 'none';
                             document.getElementById('trackPrescriptionSection').style.display = 'none';
                             document.getElementById('trackYourTurnSection').style.display = 'block';
-                            document.getElementById('trackTurnToken').textContent = '#' + data.token_no;
+                            document.getElementById('trackTurnToken').textContent = '#' + formatOnlyNumber(data.token_no);
                             document.getElementById('trackTurnCounter').textContent = 'PLEASE PROCEED TO ' + (data.counter || 'COUNTER 1').toUpperCase();
 
                             // Trigger sound & vibration if just called
                             if (prevStatus && prevStatus !== 'CALLED') {
                                 playHospitalChime();
                                 if (navigator.vibrate) navigator.vibrate([300, 150, 300, 150, 500]);
-                                showToast(`📢 It's Your Turn! Token #${data.token_no} called at Counter 1!`, '#34d399');
+                                showToast(`📢 It's Your Turn! Token #${formatOnlyNumber(data.token_no)} called at Counter 1!`, '#34d399');
                             }
                             return;
                         } else {
@@ -1778,7 +1778,7 @@
                             document.getElementById('trackYourTurnSection').style.display = 'none';
                             document.getElementById('trackPrescriptionSection').style.display = 'none';
                             document.getElementById('trackRoadmapSection').style.display = 'block';
-                            document.getElementById('roadYourToken').textContent = '#' + data.token_no;
+                            document.getElementById('roadYourToken').textContent = '#' + formatOnlyNumber(data.token_no);
 
                             // Fetch currently serving token at Counter 1 from Supabase
                             const { data: curToks } = await supabaseClient
@@ -1790,8 +1790,8 @@
                                 .limit(1);
 
                             const servingNo = (curToks && curToks.length > 0) ? curToks[0].token_no : (currentServing ? currentServing.token_no : '---');
-                            document.getElementById('roadServing').textContent = servingNo.startsWith('#') ? servingNo : '#' + servingNo;
-                            document.getElementById('trackNowServing').textContent = servingNo.replace('#', '');
+                            document.getElementById('roadServing').textContent = '#' + formatOnlyNumber(servingNo);
+                            document.getElementById('trackNowServing').textContent = formatOnlyNumber(servingNo);
 
                             // Calculate true priority-first queue position
                             const { data: allWaiting } = await supabaseClient
@@ -1817,7 +1817,7 @@
                             const qrEl = document.getElementById('trackPassQr');
                             if (qrEl) qrEl.src = 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=' + encodeURIComponent('https://kandukurijagan1.github.io/pdsd/track.html?token=' + data.token_no);
                             const qrLbl = document.getElementById('trackPassQrLabel');
-                            if (qrLbl) qrLbl.textContent = 'Token Pass #' + data.token_no;
+                            if (qrLbl) qrLbl.textContent = 'Token Pass #' + formatOnlyNumber(data.token_no);
 
                             return;
                         }
@@ -1828,23 +1828,23 @@
             }
 
             // Fallback in-memory
-            if (query === 'A001') {
+            if (query === '1' || query === 'A001') {
                 document.getElementById('trackYourTurnSection').style.display = 'none';
                 document.getElementById('trackRoadmapSection').style.display = 'none';
                 document.getElementById('trackPrescriptionSection').style.display = 'block';
-                document.getElementById('rxToken').textContent = 'A001';
+                document.getElementById('rxToken').textContent = '1';
                 document.getElementById('rxPatient').textContent = 'Kalyan Chakravarthy';
             } else {
                 document.getElementById('trackYourTurnSection').style.display = 'none';
                 document.getElementById('trackRoadmapSection').style.display = 'block';
                 document.getElementById('trackPrescriptionSection').style.display = 'none';
-                document.getElementById('roadYourToken').textContent = '#' + (query || 'A020');
-                document.getElementById('roadServing').textContent = '#' + (currentServing ? currentServing.token_no : 'A016');
-                document.getElementById('trackNowServing').textContent = currentServing ? currentServing.token_no : 'A016';
+                document.getElementById('roadYourToken').textContent = '#' + formatOnlyNumber(query || '20');
+                document.getElementById('roadServing').textContent = '#' + (currentServing ? formatOnlyNumber(currentServing.token_no) : '19');
+                document.getElementById('trackNowServing').textContent = currentServing ? formatOnlyNumber(currentServing.token_no) : '19';
                 const qrEl = document.getElementById('trackPassQr');
-                if (qrEl) qrEl.src = 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=' + encodeURIComponent('https://kandukurijagan1.github.io/pdsd/track.html?token=' + (query || 'A020'));
+                if (qrEl) qrEl.src = 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=' + encodeURIComponent('https://kandukurijagan1.github.io/pdsd/track.html?token=' + (query || '20'));
                 const qrLbl = document.getElementById('trackPassQrLabel');
-                if (qrLbl) qrLbl.textContent = 'Token Pass #' + (query || 'A020');
+                if (qrLbl) qrLbl.textContent = 'Token Pass #' + formatOnlyNumber(query || '20');
             }
         }
 
