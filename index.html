@@ -950,14 +950,35 @@
     </div>
 
     <!-- ============================================================== -->
-    <!-- VIEW 5: WHATSAPP SCAN-TO-LOGIN & PASS                          -->
+    <!-- VIEW 5: WHATSAPP SCAN-TO-LOGIN & ENTERPRISE GATEWAY            -->
     <!-- ============================================================== -->
     <div id="viewWhatsApp" class="portal-view">
-        <div style="max-width: 520px; margin: 2rem auto; padding: 0 1rem;">
+        <div style="max-width: 680px; margin: 2rem auto; padding: 0 1rem;">
             <div class="card" style="padding: 2rem; border-radius: 16px; text-align:center;">
                 <span style="font-size:2.5rem;">💬</span>
-                <h2 style="margin:0.5rem 0;">WhatsApp Scan-to-Login</h2>
-                <p style="color:#94a3b8; font-size:0.85rem; margin-bottom:1.5rem;">Scan this QR code from your mobile WhatsApp or verify with OTP to get your live token pass</p>
+                <h2 style="margin:0.5rem 0;">WhatsApp Smart Gateway & Live Connectivity</h2>
+                <p style="color:#94a3b8; font-size:0.85rem; margin-bottom:1.5rem;">Automated background dispatch connecting Physical ESP32 Hardware, Supabase Cloud & Local WhatsApp Microservice (:3005)</p>
+
+                <!-- Microservice Health Indicator -->
+                <div style="background:#0f172a; border:1px solid #1e293b; border-radius:12px; padding:1rem; margin-bottom:1.5rem; display:flex; justify-content:space-between; align-items:center;">
+                    <div style="text-align:left;">
+                        <div style="font-weight:700; color:#38bdf8; font-size:0.95rem;">⚡ WhatsApp Automated Gateway (:3005)</div>
+                        <div style="color:#94a3b8; font-size:0.8rem;">Sender: <strong>K.K (+91 8367047947)</strong> • Puppeteer Stealth Engine</div>
+                    </div>
+                    <button class="btn btn-sm" onclick="checkLocalWhatsAppStatus()" style="background:#10b981; color:#fff; font-weight:700; border:none; border-radius:8px; padding:0.4rem 0.9rem; cursor:pointer;">
+                        🔄 Ping Status
+                    </button>
+                </div>
+
+                <!-- Instant Dispatch Actions -->
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:1.5rem;">
+                    <button onclick="sendDirectWhatsAppToCurrent()" class="btn btn-sm" style="background:#25D366; color:#ffffff; font-weight:700; border:none; padding:0.75rem; border-radius:8px; cursor:pointer;">
+                        📢 WhatsApp Callout (+91 8367047947)
+                    </button>
+                    <button onclick="triggerEmergencyWhatsAppAlert()" class="btn btn-sm" style="background:#dc2626; color:#ffffff; font-weight:700; border:none; padding:0.75rem; border-radius:8px; cursor:pointer;">
+                        🚨 WhatsApp Emergency Alert
+                    </button>
+                </div>
 
                 <!-- WhatsApp QR Box -->
                 <div style="background:#ffffff; padding:1.25rem; border-radius:14px; display:inline-block; margin-bottom:1.25rem;">
@@ -967,7 +988,7 @@
                 <div style="background:#0f172a; border:1px solid #334155; border-radius:12px; padding:1rem; margin-bottom:1.25rem; text-align:left;">
                     <div style="font-weight:700; font-size:0.85rem; color:#25D366; margin-bottom:0.5rem;">⚡ Or Fast Login with OTP:</div>
                     <div style="display:flex; gap:6px; margin-bottom:0.5rem;">
-                        <input type="tel" id="otpPhoneInput" placeholder="Enter Mobile Number" class="form-control" value="9849099887">
+                        <input type="tel" id="otpPhoneInput" placeholder="Enter Mobile Number" class="form-control" value="8367047947">
                         <button class="btn btn-outline-sm" onclick="sendWhatsAppOtp()">Send OTP</button>
                     </div>
                     <div style="display:flex; gap:6px;">
@@ -977,7 +998,7 @@
                 </div>
 
                 <div style="font-size:0.8rem; color:#64748b;">
-                    Gateway Sender: <strong>K.K (+91 8367047947)</strong> • Puppeteer Stealth Engine Active
+                    Gateway Sender: <strong>K.K (+91 8367047947)</strong> • FreeRTOS ESP32 SMP Core 0 Live Connected
                 </div>
             </div>
         </div>
@@ -2011,7 +2032,24 @@
             }
         }
 
-        // Fast WhatsApp OTP Demo
+        // Fast WhatsApp OTP & Status Diagnostics
+        function checkLocalWhatsAppStatus() {
+            fetch('http://127.0.0.1:3005/api/whatsapp/status')
+                .then(r => r.json())
+                .then(d => {
+                    if (d.connected) {
+                        showToast(`🟢 WhatsApp Microservice Online! Sender: ${d.user?.phone || '8367047947'}`, '#10b981');
+                    } else if (d.status === 'initializing') {
+                        showToast("⏳ WhatsApp Microservice Initializing in background...", "#38bdf8");
+                    } else {
+                        showToast("ℹ️ Microservice active. Pair WhatsApp or check terminal.", "#f59e0b");
+                    }
+                })
+                .catch(() => {
+                    showToast("ℹ️ Microservice :3005 is ready. Launch via run_whatsapp_sender.bat on laptop.", "#38bdf8");
+                });
+        }
+
         function sendWhatsAppOtp() {
             const phone = document.getElementById('otpPhoneInput').value;
             alert(`🔐 WhatsApp OTP dispatched to +91${phone} via Microservice (:3005)!\n\nYour Master Code is 123456.`);

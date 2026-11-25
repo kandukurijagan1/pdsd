@@ -39,10 +39,10 @@ def get_local_db():
 
 def send_whatsapp_via_local_microservice(phone, message):
     """
-    Deliver WhatsApp message directly via:
-    1. Local Playwright Chrome WhatsApp Web Engine (automated in background)
-    2. Local microservice on port 3005 (if active)
-    3. WhatsApp Protocol / wa.me universal fallback
+    Advanced Multi-Tier WhatsApp Delivery:
+    Tier 1: Dedicated Local Port 3005 Microservice (Zero tabs, instant background WebSocket delivery)
+    Tier 2: Playwright Headless WhatsApp Web Automation Engine
+    Tier 3: Windows Deep-Link Protocol (whatsapp://send?phone=...&text=...)
     """
     digits = ''.join(filter(str.isdigit, str(phone)))
     if len(digits) == 12 and digits.startswith('91'):
@@ -52,7 +52,21 @@ def send_whatsapp_via_local_microservice(phone, message):
 
     target_phone = f"91{digits}"
 
-    # 1. Automated delivery via Playwright WhatsApp Web Engine
+    # Tier 1: Dedicated Node.js microservice (:3005)
+    try:
+        res = requests.post(
+            f"{LOCAL_GATEWAY_URL}/api/whatsapp/sendMessage",
+            json={'phone': target_phone, 'message': message},
+            timeout=4
+        )
+        if res.status_code == 200:
+            d = res.json()
+            if d.get('success'):
+                return True, "Delivered via WhatsApp Microservice (:3005)"
+    except Exception:
+        pass
+
+    # Tier 2: Playwright Chrome Automation Engine
     try:
         from whatsapp_web_engine import whatsapp_web_engine
         if not whatsapp_web_engine.running:
@@ -61,23 +75,9 @@ def send_whatsapp_via_local_microservice(phone, message):
         if queued:
             return True, "Queued in WhatsApp Web Engine"
     except Exception as ex:
-        print(f"[Bridge Engine Note] {ex}")
-
-    # 2. Try microservice on port 3005 if running
-    try:
-        res = requests.post(
-            f"{LOCAL_GATEWAY_URL}/api/whatsapp/sendMessage",
-            json={'phone': target_phone, 'message': message},
-            timeout=3
-        )
-        if res.status_code == 200:
-            d = res.json()
-            if d.get('success'):
-                return True, "Delivered via microservice"
-    except Exception:
         pass
 
-    # 3. Direct protocol fallback
+    # Tier 3: Universal Desktop Protocol Fallback
     try:
         import subprocess
         import urllib.parse
