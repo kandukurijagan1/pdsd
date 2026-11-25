@@ -137,7 +137,7 @@ bool sirenState                 = false;
 const unsigned long DEBOUNCE_STABLE_TIME = 35; // 35ms stable filter
 
 // =========================================================================================
-// 5. Acoustic Feedback Subsystem (Buzzer)
+// 5. Acoustic Feedback Subsystem (Buzzer - Gentle Current Draw to Protect 5V Rail)
 // =========================================================================================
 void playBeep(int durationMs) {
   digitalWrite(PIN_BUZZER, HIGH);
@@ -146,25 +146,25 @@ void playBeep(int durationMs) {
 }
 
 void soundBeepShort() {
-  playBeep(80);
+  playBeep(35);
 }
 
 void soundBeepDouble() {
-  playBeep(80);
-  delay(60);
-  playBeep(80);
+  playBeep(35);
+  delay(40);
+  playBeep(35);
 }
 
 void soundChimeAlert() {
+  playBeep(40);
+  delay(30);
   playBeep(60);
-  delay(40);
-  playBeep(140);
 }
 
 void soundEmergencyAlert() {
-  for (int i = 0; i < 4; i++) {
-    playBeep(100);
-    delay(60);
+  for (int i = 0; i < 3; i++) {
+    playBeep(40);
+    delay(40);
   }
 }
 
@@ -243,6 +243,17 @@ void sanitizeLcdLine(const char* src, char* dst16) {
 
 void renderLCDDelta(const char* l0, const char* l1) {
   if (!lcd) return;
+
+  // I2C Hardware Bus Health Check & Auto-Recovery
+  Wire.beginTransmission(0x27);
+  if (Wire.endTransmission() != 0) {
+    // Try alternate address 0x3F
+    Wire.beginTransmission(0x3F);
+    if (Wire.endTransmission() != 0) {
+      Serial.println("[LCD] I2C bus error detected! Performing auto-recovery reset...");
+      initLcdHardware();
+    }
+  }
 
   char formatted0[17];
   char formatted1[17];
@@ -689,8 +700,8 @@ void loop() {
   if (checkButtonPressed(&btnGetToken, now)) {
     Serial.println("[BUTTON 1 - GPIO 25] Pressed! Calling NEXT patient in queue...");
 
-    soundBeepDouble();
     setDisplayMessage("Calling Next...", "Fetching Cloud..");
+    soundBeepDouble();
 
     HardwareEvent ev = { EVENT_CALL_NEXT, 0 };
     xQueueSend(xHardwareEventQueue, &ev, 0);
