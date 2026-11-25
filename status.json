@@ -1,0 +1,9 @@
+{
+  "system": "SmartQ PDSD System",
+  "base_website": "https://kandukurijagan1.github.io/pdsd/",
+  "cloud_database": "https://mnsfeojsbzomvhcuiaur.supabase.co",
+  "counter": "Counter 1",
+  "serving_token": "19",
+  "patient_name": "Swapna Priya",
+  "status": "ACTIVE"
+}
