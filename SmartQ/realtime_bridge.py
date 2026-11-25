@@ -32,10 +32,35 @@ load_dotenv(os.path.join(BASE_DIR, '.env'))
 LOCAL_GATEWAY_URL = os.getenv('WHATSAPP_LOCAL_GATEWAY_URL', 'http://127.0.0.1:3005').strip()
 DB_PATH = os.path.join(BASE_DIR, 'smartq.db')
 
-def get_local_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+import subprocess
+
+def ensure_microservice_running():
+    """Checks if port 3005 microservice is running; if not, automatically starts it in the background."""
+    try:
+        r = requests.get(f"{LOCAL_GATEWAY_URL}/api/whatsapp/status", timeout=1.5)
+        if r.status_code == 200:
+            return True
+    except Exception:
+        pass
+
+    # Find service.js in known locations
+    possible_dirs = [
+        os.path.abspath(os.path.join(BASE_DIR, '..', 'whatsapp_service')),
+        os.path.abspath(os.path.join(BASE_DIR, 'whatsapp_service')),
+        r"C:\Users\ADMIN\Downloads\crime monitoring\whatsapp_service"
+    ]
+    for d in possible_dirs:
+        svc_path = os.path.join(d, 'service.js')
+        if os.path.exists(svc_path):
+            try:
+                flags = 0x08000000 if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0
+                subprocess.Popen(['node', 'service.js'], cwd=d, shell=True, creationflags=flags)
+                print(f"[Realtime Bridge] 🚀 Automatically spawned WhatsApp Microservice (:3005) from {d}")
+                time.sleep(2.0)
+                return True
+            except Exception as e:
+                print(f"[Realtime Bridge] Notice auto-starting microservice: {e}")
+    return False
 
 def send_whatsapp_via_local_microservice(phone, message):
     """
@@ -123,10 +148,16 @@ class RealtimeWhatsAppBridge:
 
     def _run_loop(self):
         print("[Realtime Bridge] Connecting to Supabase Cloud and local WhatsApp microservice (:3005)...")
+        ensure_microservice_running()
         time.sleep(1.0)
         
+        last_microservice_check = time.time()
         while self.running:
             try:
+                # Keep microservice auto-supervised
+                if time.time() - last_microservice_check > 30:
+                    last_microservice_check = time.time()
+                    ensure_microservice_running()
                 if not self.supabase_client:
                     if not self._init_supabase():
                         time.sleep(3.0)
