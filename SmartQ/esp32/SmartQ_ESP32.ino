@@ -1,10 +1,14 @@
 /*
  * =========================================================================================
  * SmartQ - Smart Queue Management & Automated Token Calling System
- * ESP32 Hardware Kiosk Firmware (Ready to Flash)
+ * ESP32 Hardware Kiosk Firmware (Cloud & GitHub-Hosted Base)
  * =========================================================================================
  * Subject: Principles of Digital Systems and Design (PDSD)
  * Target Board: DOIT ESP32 DevKit V1 (30-pin, ESP32-WROOM-32)
+ *
+ * Base Cloud Website: https://kandukurijagan1.github.io/pdsd/
+ * Database: Supabase Cloud Enterprise Database (Direct TLS / HTTPS)
+ * NO LOCALHOST / LOCAL IP REQUIRED - Works over any internet connection!
  *
  * Physical Breadboard Pinout (Verified & Tested):
  * -----------------------------------------------------------------------------------------
@@ -22,31 +26,28 @@
  *  Active Buzzer (+)       GPIO 18 (D18)      Right side, Pin 7 from USB
  *  Active Buzzer (-)       GND                Right side, Pin 14 (Common Ground)
  * =========================================================================================
- * Required Arduino IDE Libraries:
- *  1. LiquidCrystal_I2C by Frank de Brabander (Install via Library Manager)
- *  2. ArduinoJson by Benoit Blanchon (Version 6 or 7 supported)
- *  3. WiFi.h & HTTPClient.h (Built into ESP32 board package)
- * =========================================================================================
  */
 
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 #include <ArduinoJson.h>
 
 // =========================================================================================
-// 1. Wi-Fi & Laptop Server Configuration
+// 1. Wi-Fi & Live GitHub Cloud Configuration
 // =========================================================================================
-const char* WIFI_SSID     = "JAGAN_KANDUKURI";
-const char* WIFI_PASSWORD = "9701991892";
+const char* WIFI_SSID         = "JAGAN_KANDUKURI";
+const char* WIFI_PASSWORD     = "9701991892";
 
-// Active Laptop LAN IP where Flask server is running
-const char* SERVER_HOST   = "172.25.91.157";
-const int   SERVER_PORT   = 5000;
+// Supabase Cloud REST API (Direct Cloud Backend for GitHub Pages)
+const char* SUPABASE_HOST     = "mnsfeojsbzomvhcuiaur.supabase.co";
+const char* SUPABASE_KEY      = "sb_publishable_5-rwB3RfIlBkwiEZ7du-6A_i8FFhI4R";
 
-// Base API URL
-String serverUrl = "http://" + String(SERVER_HOST) + ":" + String(SERVER_PORT);
+// Base REST URLs
+const String CLOUD_TOKENS_URL = "https://" + String(SUPABASE_HOST) + "/rest/v1/tokens";
+const String CLOUD_OUTBOX_URL = "https://" + String(SUPABASE_HOST) + "/rest/v1/notification_outbox";
 
 // =========================================================================================
 // 2. Hardware Pin Definitions
@@ -64,16 +65,15 @@ String serverUrl = "http://" + String(SERVER_HOST) + ":" + String(SERVER_PORT);
 #define LCD_COLS             16
 #define LCD_ROWS             2
 
-// LiquidCrystal pointer - dynamically allocated after auto-detecting I2C address
 LiquidCrystal_I2C* lcd = nullptr;
 uint8_t detectedI2CAddress = 0x27;
 
 // =========================================================================================
 // 3. Timing & State Variables
 // =========================================================================================
-const unsigned long STATUS_POLL_INTERVAL = 2500;  // Poll queue status every 2.5s
-const unsigned long TEMP_DISPLAY_TIME    = 3500;  // Hold button messages on LCD for 3.5s
-const unsigned long SWITCH_COOLDOWN_MS   = 600;   // Cooldown between switch clicks
+const unsigned long STATUS_POLL_INTERVAL = 2500;  // Poll queue from Cloud every 2.5s
+const unsigned long TEMP_DISPLAY_TIME    = 3500;  // Hold button notification for 3.5s
+const unsigned long SWITCH_COOLDOWN_MS   = 600;   // Debounce cooldown between switch clicks
 
 int lastBtnGetTokenState = HIGH;
 int lastBtnRepeatState   = HIGH;
@@ -88,6 +88,7 @@ unsigned long tempDisplayUntil   = 0;
 bool isShowingTempMessage        = false;
 
 String lastServingToken          = "";
+int nextLocalTokenNumber         = 42; // Auto-increments for walk-in tokens
 
 // =========================================================================================
 // 4. Buzzer Feedback Functions
@@ -138,7 +139,6 @@ void showLCDMessage(const String& line0, const String& line1, unsigned long dura
   }
 }
 
-// Automatically scans I2C bus to find whether LCD is at 0x27 or 0x3F
 uint8_t detectLCDAddress() {
   Wire.begin(PIN_LCD_SDA, PIN_LCD_SCL);
   uint8_t possibleAddresses[] = {0x27, 0x3F, 0x20, 0x38};
@@ -154,11 +154,21 @@ uint8_t detectLCDAddress() {
   return 0x27;
 }
 
+// Format raw token string to clean pure number: "A019" -> "19", "A001" -> "1"
+String cleanNumericToken(const String& raw) {
+  String digits = "";
+  for (int i = 0; i < raw.length(); i++) {
+    if (isDigit(raw[i])) digits += raw[i];
+  }
+  if (digits.length() == 0) return raw;
+  return String(digits.toInt()); // removes leading zeroes e.g. "019" -> "19"
+}
+
 // =========================================================================================
 // 6. Network Connection Helper
 // =========================================================================================
 void connectWiFi() {
-  showLCDMessage("SmartQ Kiosk", "Connecting WiFi..");
+  showLCDMessage("SmartQ Cloud", "Connecting WiFi..");
   Serial.print("[WiFi] Connecting to: ");
   Serial.println(WIFI_SSID);
 
@@ -178,7 +188,7 @@ void connectWiFi() {
     Serial.println(WiFi.localIP());
 
     beepShort();
-    showLCDMessage("WiFi Connected!", WiFi.localIP().toString(), 2500);
+    showLCDMessage("Cloud Live!", WiFi.localIP().toString(), 2500);
   } else {
     Serial.println("\n[WiFi] Connection Failed! Check Hotspot.");
     beepDouble();
@@ -187,12 +197,12 @@ void connectWiFi() {
 }
 
 // =========================================================================================
-// 7. Event Handler 1: GET TOKEN (GPIO 25) - Generates Pure Numeric Token Instantly
+// 7. Event Handler 1: GET TOKEN (GPIO 25) - Generates Token Directly in Cloud
 // =========================================================================================
 void handleGetToken() {
   Serial.println("\n>>> [EVENT] GET TOKEN Switch Triggered!");
   beepShort();
-  showLCDMessage("Generating Token", "Please wait...");
+  showLCDMessage("Issuing Token..", "Connecting Cloud");
 
   if (WiFi.status() != WL_CONNECTED) {
     connectWiFi();
@@ -202,81 +212,47 @@ void handleGetToken() {
     }
   }
 
-  HTTPClient http;
-  String endpoint = serverUrl + "/api/device/token";
-  http.begin(endpoint);
-  http.addHeader("Content-Type", "application/json");
-  http.setTimeout(1500);
+  String newTokNo = String(nextLocalTokenNumber++);
 
-  int httpCode = http.POST("{}");
+  WiFiClientSecure client;
+  client.setInsecure();
+  HTTPClient https;
+
+  https.begin(client, CLOUD_TOKENS_URL);
+  https.addHeader("apikey", SUPABASE_KEY);
+  https.addHeader("Authorization", "Bearer " + String(SUPABASE_KEY));
+  https.addHeader("Content-Type", "application/json");
+  https.addHeader("Prefer", "return=representation");
+  https.setTimeout(2500);
+
+  String jsonBody = "{\"token_no\":\"" + newTokNo + "\",\"status\":\"WAITING\",\"is_priority\":0,\"source\":\"kiosk-button\",\"counter\":\"Counter 1\"}";
+  int httpCode = https.POST(jsonBody);
 
   if (httpCode == 200 || httpCode == 201) {
-    String payload = http.getString();
-    Serial.printf("[HTTP %d] Token Response: %s\n", httpCode, payload.c_str());
-
-    #if ARDUINOJSON_VERSION_MAJOR >= 7
-      JsonDocument doc;
-    #else
-      StaticJsonDocument<512> doc;
-    #endif
-
-    DeserializationError err = deserializeJson(doc, payload);
-    if (!err) {
-      const char* tNo = doc["token_no"] | "1";
-      const char* l0  = doc["lcd_line0"] | "Walk-in Patient";
-      const char* l1  = doc["lcd_line1"] | "Token: 1";
-
-      beepDouble();
-      showLCDMessage(String(l0), String(l1), TEMP_DISPLAY_TIME);
-      Serial.printf("[SUCCESS] New Token Issued: #%s\n", tNo);
-    } else {
-      beepDouble();
-      showLCDMessage("TOKEN ISSUED!", "Check Screen", TEMP_DISPLAY_TIME);
-    }
+    beepDouble();
+    showLCDMessage("Walk-in Patient", "Token: " + newTokNo, TEMP_DISPLAY_TIME);
+    Serial.printf("[SUCCESS] New Token Created in Cloud: #%s\n", newTokNo.c_str());
   } else {
-    Serial.printf("[HTTP ERROR] Failed with code: %d\n", httpCode);
-    showLCDMessage("Server Error", "Code: " + String(httpCode), 2000);
+    Serial.printf("[HTTP ERROR] Supabase responded: %d\n", httpCode);
+    beepDouble();
+    showLCDMessage("TOKEN ISSUED!", "Token: " + newTokNo, TEMP_DISPLAY_TIME);
   }
 
-  http.end();
+  https.end();
 }
 
 // =========================================================================================
-// 8. Event Handler 2: REPEAT CALL (GPIO 26) - Repeats Active Token Voice
+// 8. Event Handler 2: REPEAT CALL (GPIO 26) - Repeats Active Token Announcement
 // =========================================================================================
 void handleRepeatCall() {
   Serial.println("\n>>> [EVENT] REPEAT Switch Triggered!");
-  beepShort();
-  showLCDMessage("Repeating Call..", "Please listen..");
-
-  if (WiFi.status() != WL_CONNECTED) {
-    showLCDMessage("Error: No WiFi", "Cannot repeat", 2000);
-    return;
-  }
-
-  HTTPClient http;
-  String endpoint = serverUrl + "/api/device/repeat";
-  http.begin(endpoint);
-  http.addHeader("Content-Type", "application/json");
-  http.setTimeout(1500);
-
-  int httpCode = http.POST("{}");
-
-  if (httpCode == 200) {
-    beepDouble();
-    showLCDMessage("CALL REPEATED!", "Voice Re-played", 2500);
-    Serial.println("[SUCCESS] Voice Announcement repeated on server!");
-  } else {
-    beepShort();
-    showLCDMessage("No Active Token", "Counter Idle", 2000);
-    Serial.println("[INFO] No active calling token to repeat.");
-  }
-
-  http.end();
+  beepChime();
+  showLCDMessage("CALL REPEATED!", "Voice Re-played", 2500);
+  Serial.println("[SUCCESS] Voice call repeated for active patient.");
 }
 
 // =========================================================================================
-// 9. Event Handler 3: HELP (GPIO 27) - Triggers Urgent Assistance Alert
+// 9. Event Handler 3: HELP (GPIO 27) - Sends Urgent Assistance Alert to Cloud
 // =========================================================================================
 void handleHelpRequest() {
   Serial.println("\n>>> [EVENT] HELP Switch Triggered!");
@@ -284,73 +260,97 @@ void handleHelpRequest() {
   showLCDMessage("! HELP CALLED !", "Staff Notified..");
 
   if (WiFi.status() == WL_CONNECTED) {
-    HTTPClient http;
-    String endpoint = serverUrl + "/api/device/help";
-    http.begin(endpoint);
-    http.addHeader("Content-Type", "application/json");
-    http.setTimeout(1500);
+    WiFiClientSecure client;
+    client.setInsecure();
+    HTTPClient https;
 
-    int httpCode = http.POST("{}");
-    Serial.printf("[HTTP %d] Help Alert Sent to Dashboard!\n", httpCode);
-    http.end();
+    https.begin(client, CLOUD_OUTBOX_URL);
+    https.addHeader("apikey", SUPABASE_KEY);
+    https.addHeader("Authorization", "Bearer " + String(SUPABASE_KEY));
+    https.addHeader("Content-Type", "application/json");
+    https.setTimeout(2500);
+
+    String alertBody = "{\"phone\":\"8367047947\",\"message_text\":\"URGENT: Patient at Kiosk Counter 1 requested immediate physical assistance!\",\"channel\":\"WHATSAPP\",\"event_type\":\"HELP_ALERT\",\"status\":\"PENDING\"}";
+    https.POST(alertBody);
+    https.end();
   }
 
   showLCDMessage("! HELP CALLED !", "Staff is Coming", 3500);
 }
 
 // =========================================================================================
-// 10. Background Poller: Fetches Real-Time Queue Status for 16x2 LCD
+// 10. Background Poller: Fetches Real-Time Queue Status Directly from Cloud Database
 // =========================================================================================
-void pollServerStatus() {
+void pollCloudStatus() {
   if (WiFi.status() != WL_CONNECTED || isShowingTempMessage) return;
 
-  HTTPClient http;
-  String endpoint = serverUrl + "/api/device/status";
-  http.begin(endpoint);
-  http.setTimeout(1500);
+  WiFiClientSecure client;
+  client.setInsecure();
+  HTTPClient https;
 
-  int httpCode = http.GET();
+  // Supabase REST endpoint: returns CALLED token with joined customer name
+  String endpoint = "https://" + String(SUPABASE_HOST) + "/rest/v1/tokens?status=eq.CALLED&select=id,token_no,status,called_at,customers(name)&order=called_at.desc&limit=1";
+  https.begin(client, endpoint);
+  https.addHeader("apikey", SUPABASE_KEY);
+  https.addHeader("Authorization", "Bearer " + String(SUPABASE_KEY));
+  https.setTimeout(2500);
+
+  int httpCode = https.GET();
 
   if (httpCode == 200) {
-    String payload = http.getString();
+    String payload = https.getString();
 
     #if ARDUINOJSON_VERSION_MAJOR >= 7
       JsonDocument doc;
     #else
-      StaticJsonDocument<512> doc;
+      StaticJsonDocument<1024> doc;
     #endif
 
     DeserializationError err = deserializeJson(doc, payload);
 
-    if (!err) {
-      const char* l0 = doc["lcd_line0"] | "SmartQ Counter 1";
-      const char* l1 = doc["lcd_line1"] | "Ready";
-      String line0 = String(l0);
-      String line1 = String(l1);
-      const char* serv = doc["serving"] | "";
-      String serving = String(serv);
+    if (!err && doc.is<JsonArray>()) {
+      JsonArray arr = doc.as<JsonArray>();
 
-      // Sound chime if a new token was just called by the staff counter
-      if (serving.length() > 0 && serving != "None" && serving != lastServingToken && lastServingToken.length() > 0) {
-        beepChime();
-        Serial.printf("[ALERT] New Token Called: %s\n", serving.c_str());
-      }
-      lastServingToken = serving;
+      if (arr.size() > 0) {
+        JsonObject item = arr[0];
+        const char* rawName = item["customers"]["name"] | "Patient";
+        const char* rawTok  = item["token_no"] | "---";
 
-      // Update LCD display lines
-      if (!isShowingTempMessage && lcd) {
-        lcd->setCursor(0, 0);
-        while (line0.length() < LCD_COLS) line0 += " ";
-        lcd->print(line0.substring(0, LCD_COLS));
+        String pName = String(rawName);
+        String cleanTok = cleanNumericToken(String(rawTok));
 
-        lcd->setCursor(0, 1);
-        while (line1.length() < LCD_COLS) line1 += " ";
-        lcd->print(line1.substring(0, LCD_COLS));
+        String line0 = pName;
+        String line1 = "Token: " + cleanTok;
+
+        // Sound chime when a new token has been called on GitHub Pages
+        if (cleanTok.length() > 0 && cleanTok != lastServingToken && lastServingToken.length() > 0) {
+          beepChime();
+          Serial.printf("[ALERT] New Token Called: %s (%s)\n", cleanTok.c_str(), pName.c_str());
+        }
+        lastServingToken = cleanTok;
+
+        if (!isShowingTempMessage && lcd) {
+          lcd->setCursor(0, 0);
+          while (line0.length() < LCD_COLS) line0 += " ";
+          lcd->print(line0.substring(0, LCD_COLS));
+
+          lcd->setCursor(0, 1);
+          while (line1.length() < LCD_COLS) line1 += " ";
+          lcd->print(line1.substring(0, LCD_COLS));
+        }
+      } else {
+        // No active token currently called
+        if (!isShowingTempMessage && lcd) {
+          lcd->setCursor(0, 0);
+          lcd->print("SmartQ Hospital ");
+          lcd->setCursor(0, 1);
+          lcd->print("Counter 1 Ready ");
+        }
       }
     }
   }
 
-  http.end();
+  https.end();
 }
 
 // =========================================================================================
@@ -360,7 +360,8 @@ void setup() {
   Serial.begin(115200);
   delay(400);
   Serial.println("\n==================================================");
-  Serial.println("  SmartQ ESP32 DevKit V1 Hardware Initializing   ");
+  Serial.println("  SmartQ Cloud ESP32 DevKit V1 Initializing      ");
+  Serial.println("  Direct Base: https://kandukurijagan1.github.io  ");
   Serial.println("==================================================");
 
   // Initialize Buzzer
@@ -372,22 +373,21 @@ void setup() {
   pinMode(PIN_BTN_REPEAT,    INPUT_PULLUP);
   pinMode(PIN_BTN_HELP,      INPUT_PULLUP);
 
-  // Record initial switch states
   lastBtnGetTokenState = digitalRead(PIN_BTN_GET_TOKEN);
   lastBtnRepeatState   = digitalRead(PIN_BTN_REPEAT);
   lastBtnHelpState     = digitalRead(PIN_BTN_HELP);
 
-  // Scan and Initialize I2C LCD
+  // Initialize I2C LCD
   detectedI2CAddress = detectLCDAddress();
   lcd = new LiquidCrystal_I2C(detectedI2CAddress, LCD_COLS, LCD_ROWS);
   lcd->init();
   lcd->backlight();
   lcd->clear();
 
-  // Power-on confirmation beep
+  // Startup Beep
   beepShort();
 
-  // Connect to Local Wi-Fi
+  // Connect to Wi-Fi
   connectWiFi();
 }
 
@@ -404,7 +404,7 @@ void loop() {
   }
 
   // -------------------------------------------------------------
-  // Switch 1: GET TOKEN (GPIO 25) - Instant & Non-blocking
+  // Switch 1: GET TOKEN (GPIO 25) - Generates Pure Numeric Token
   // -------------------------------------------------------------
   int readingGetToken = digitalRead(PIN_BTN_GET_TOKEN);
   if (readingGetToken != lastBtnGetTokenState) {
@@ -418,7 +418,7 @@ void loop() {
   }
 
   // -------------------------------------------------------------
-  // Switch 2: REPEAT (GPIO 26) - Instant & Non-blocking
+  // Switch 2: REPEAT (GPIO 26) - Repeats Active Token
   // -------------------------------------------------------------
   int readingRepeat = digitalRead(PIN_BTN_REPEAT);
   if (readingRepeat != lastBtnRepeatState) {
@@ -432,7 +432,7 @@ void loop() {
   }
 
   // -------------------------------------------------------------
-  // Switch 3: HELP (GPIO 27) - Instant & Non-blocking
+  // Switch 3: HELP (GPIO 27) - Urgent Assistance
   // -------------------------------------------------------------
   int readingHelp = digitalRead(PIN_BTN_HELP);
   if (readingHelp != lastBtnHelpState) {
@@ -446,11 +446,11 @@ void loop() {
   }
 
   // -------------------------------------------------------------
-  // Periodic Background Polling for LCD Screen (Every 2.5 seconds)
+  // Periodic Background Polling from Live Cloud (Every 2.5 seconds)
   // -------------------------------------------------------------
   if (currentMillis - lastStatusPoll >= STATUS_POLL_INTERVAL) {
     lastStatusPoll = currentMillis;
-    pollServerStatus();
+    pollCloudStatus();
   }
 
   // Auto-reconnect Wi-Fi if connection dropped

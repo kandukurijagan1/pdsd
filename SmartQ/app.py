@@ -59,6 +59,7 @@ HOST = os.getenv('HOST', '0.0.0.0')
 PORT = int(os.getenv('PORT', 5000))
 COUNTER_NAME = os.getenv('COUNTER_NAME', 'Counter 1')
 ORGANIZATION_NAME = os.getenv('ORGANIZATION_NAME', 'SmartQ Service Center')
+BASE_WEBSITE_URL = os.getenv('BASE_WEBSITE_URL', 'https://kandukurijagan1.github.io/pdsd').rstrip('/')
 
 # ---------------------------------------------------------
 # Database Utilities
@@ -274,8 +275,7 @@ def create_token_record(name=None, phone=None, email=None, language='en', is_pri
 
         # Dispatch WhatsApp Notification
         whatsapp_link = None
-        lan_ip = get_lan_ip()
-        tracking_url = f"http://{lan_ip}:{PORT}/track/{token_no}"
+        tracking_url = f"{BASE_WEBSITE_URL}/track.html?token={token_no}"
         if phone:
             org_name = get_setting('organization_name', 'SmartQ Service Center')
             counter_name = get_setting('counter_name', 'Counter 1')
@@ -458,8 +458,7 @@ def track_token_page(token_no):
 @app.route('/api/qr/token/<token_no>')
 def api_token_qr(token_no):
     """Generate QR code PNG pointing directly to /track/<token_no>."""
-    lan_ip = get_lan_ip()
-    track_url = f"http://{lan_ip}:{PORT}/track/{token_no}"
+    track_url = f"{BASE_WEBSITE_URL}/track.html?token={token_no}"
     qr = qrcode.QRCode(
         version=1,
         error_correction=qrcode.constants.ERROR_CORRECT_M,
@@ -490,8 +489,7 @@ def mobile_login_page():
 @app.route('/qr-entrance')
 def qr_entrance_image():
     """Generate QR code pointing to entrance login & registration."""
-    lan_ip = get_lan_ip()
-    login_url = f"http://{lan_ip}:{PORT}/login"
+    login_url = f"{BASE_WEBSITE_URL}/login.html"
     qr = qrcode.QRCode(
         version=1,
         error_correction=qrcode.constants.ERROR_CORRECT_M,
@@ -508,9 +506,8 @@ def qr_entrance_image():
 
 @app.route('/qr')
 def qr_image():
-    """Generate and return QR code PNG pointing to /register on LAN."""
-    lan_ip = get_lan_ip()
-    reg_url = f"http://{lan_ip}:{PORT}/register"
+    """Generate and return QR code PNG pointing to /register on GitHub base website."""
+    reg_url = f"{BASE_WEBSITE_URL}/register.html"
     
     qr = qrcode.QRCode(
         version=1,
@@ -530,8 +527,7 @@ def qr_image():
 @app.route('/api/qr-info')
 def qr_info():
     """Return registration URL and Base64 QR code for dashboard embedding."""
-    lan_ip = get_lan_ip()
-    reg_url = f"http://{lan_ip}:{PORT}/register"
+    reg_url = f"{BASE_WEBSITE_URL}/register.html"
     
     qr = qrcode.QRCode(
         version=1,
@@ -772,7 +768,7 @@ def api_whatsapp_webhook():
                     f"Ahead of you: *{ahead} patients*\n"
                     f"Estimated Wait: *~{est} minutes*\n"
                     f"Counter: *{active_tok['counter']}*\n\n"
-                    f"🔗 Live QR Tracking: http://{lan_ip}:{PORT}/track/{active_tok['token_no']}"
+                    f"🔗 Live QR Tracking: {BASE_WEBSITE_URL}/track.html?token={active_tok['token_no']}"
                 )
                 send_whatsapp_notification(conn, active_tok['id'], from_phone, reply, 'BOT_STATUS_REPLY')
                 return jsonify({'status': 'status_replied', 'token_no': active_tok['token_no'], 'ahead': ahead, 'reply': reply}), 200
@@ -797,7 +793,7 @@ def api_whatsapp_webhook():
                     f"Doctor: *{comp_tok['doctor_name']}*\n"
                     f"Diagnosis: *{comp_tok['diagnosis']}*\n\n"
                     f"🔗 View & Print Official Prescription:\n"
-                    f"http://{lan_ip}:{PORT}/track/{comp_tok['token_no']}"
+                    f"{BASE_WEBSITE_URL}/track.html?token={comp_tok['token_no']}"
                 )
                 send_whatsapp_notification(conn, comp_tok['id'], from_phone, reply, 'BOT_RX_REPLY')
                 return jsonify({'status': 'rx_replied', 'token_no': comp_tok['token_no'], 'reply': reply}), 200
@@ -1509,7 +1505,7 @@ def dispatch_consecutive_5_ahead_alerts(conn, current_serving_token_no, counter=
         ahead_count = idx
         est_wait = idx * 3
         w_lang = w_tok.get('preferred_language') or 'en'
-        w_track_url = f"http://{lan_ip}:{PORT}/track/{w_tok['token_no']}"
+        w_track_url = f"{BASE_WEBSITE_URL}/track.html?token={w_tok['token_no']}"
 
         w_upcoming_msg = format_token_upcoming_message(
             token_no=w_tok['token_no'],
@@ -1731,8 +1727,7 @@ def api_complete_service():
         phone = completed_token.get('phone')
         whatsapp_link = None
         if phone:
-            lan_ip = get_lan_ip()
-            prescription_url = f"http://{lan_ip}:{PORT}/track/{completed_token['token_no']}"
+            prescription_url = f"{BASE_WEBSITE_URL}/track.html?token={completed_token['token_no']}"
             org_name = get_setting('organization_name', 'SmartQ Service Center')
             lang = completed_token.get('preferred_language') or 'en'
             wa_comp_msg = format_token_completed_message(
@@ -1858,8 +1853,7 @@ def api_transfer_token():
 
         whatsapp_link = None
         if t_phone:
-            lan_ip = get_lan_ip()
-            track_url = f"http://{lan_ip}:{PORT}/track/{t_num}"
+            track_url = f"{BASE_WEBSITE_URL}/track.html?token={t_num}"
             if t_lang == 'te':
                 msg = (
                     f"🏥 *SmartQ కేర్ - డిపార్ట్‌మెంట్ బదిలీ*\n"
@@ -2009,7 +2003,7 @@ def api_whatsapp_outbox():
             if r.get('event_type') == 'TOKEN_CALLED':
                 msg = format_token_called_message(token_no, p_name, counter, org_name, lang)
             else:
-                track_url = f"http://{lan_ip}:{PORT}/ticket/{token_no}"
+                track_url = f"{BASE_WEBSITE_URL}/track.html?token={token_no}"
                 msg = format_token_created_message(token_no, p_name, 1, counter, 3, track_url, org_name, lang)
             
             r['message_preview'] = msg
@@ -2043,8 +2037,7 @@ def api_whatsapp_link():
         counter = get_setting('counter_name', 'Counter 1')
         org_name = get_setting('organization_name', 'SmartQ Service Center')
         lang = token.get('preferred_language', 'en')
-        lan_ip = get_lan_ip()
-        tracking_url = f"http://{lan_ip}:{PORT}/ticket/{token_no}"
+        tracking_url = f"{BASE_WEBSITE_URL}/track.html?token={token_no}"
 
         if action == 'call':
             msg = format_token_called_message(token_no, token.get('name', 'Patient'), counter, org_name, lang)
@@ -2094,12 +2087,12 @@ def api_whatsapp_send_direct():
                 if t_dict['status'] == 'CALLED':
                     msg = format_token_called_message(token_no, t_dict['name'] or name, counter, org_name, lang)
                 elif t_dict['status'] == 'COMPLETED':
-                    msg = format_token_completed_message(token_no, t_dict['name'] or name, f"http://{lan_ip}:{PORT}/track/{token_no}", org_name, lang)
+                    msg = format_token_completed_message(token_no, t_dict['name'] or name, f"{BASE_WEBSITE_URL}/track.html?token={token_no}", org_name, lang)
                 else:
-                    msg = format_token_created_message(token_no, t_dict['name'] or name, 1, counter, 6, f"http://{lan_ip}:{PORT}/track/{token_no}", org_name, lang)
+                    msg = format_token_created_message(token_no, t_dict['name'] or name, 1, counter, 6, f"{BASE_WEBSITE_URL}/track.html?token={token_no}", org_name, lang)
 
         if not msg:
-            msg = f"🏥 *{org_name}*\nHello *{name}*, your Token *{token_no or ''}* live tracking pass: http://{lan_ip}:{PORT}/track/{token_no or ''}"
+            msg = f"🏥 *{org_name}*\nHello *{name}*, your Token *{token_no or ''}* live tracking pass: {BASE_WEBSITE_URL}/track.html?token={token_no or ''}"
 
         res = send_whatsapp_notification(conn, None, phone, msg, 'DIRECT_DASHBOARD_DISPATCH')
         return jsonify({
