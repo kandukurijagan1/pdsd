@@ -42,7 +42,7 @@ const char* WIFI_SSID     = "JAGAN_KANDUKURI";
 const char* WIFI_PASSWORD = "9701991892";
 
 // Active Laptop LAN IP where Flask server is running
-const char* SERVER_HOST   = "10.74.66.184";
+const char* SERVER_HOST   = "172.25.91.157";
 const int   SERVER_PORT   = 5000;
 
 // Base API URL
