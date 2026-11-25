@@ -36,16 +36,19 @@
 #include <ArduinoJson.h>
 
 // =========================================================================================
-// 1. Wi-Fi & Live GitHub Cloud Configuration
+// 1. Wi-Fi & Live Base Website Configuration
 // =========================================================================================
 const char* WIFI_SSID         = "JAGAN_KANDUKURI";
 const char* WIFI_PASSWORD     = "9701991892";
 
-// Supabase Cloud REST API (Direct Cloud Backend for GitHub Pages)
+// Base Website Link (GitHub Hosted - NOT localhost)
+const char* BASE_LINK         = "https://kandukurijagan1.github.io/pdsd/";
+
+// Live Cloud Database (Supabase Cloud powering https://kandukurijagan1.github.io/pdsd/)
 const char* SUPABASE_HOST     = "mnsfeojsbzomvhcuiaur.supabase.co";
 const char* SUPABASE_KEY      = "sb_publishable_5-rwB3RfIlBkwiEZ7du-6A_i8FFhI4R";
 
-// Base REST URLs
+// Live REST Endpoints
 const String CLOUD_TOKENS_URL = "https://" + String(SUPABASE_HOST) + "/rest/v1/tokens";
 const String CLOUD_OUTBOX_URL = "https://" + String(SUPABASE_HOST) + "/rest/v1/notification_outbox";
 
@@ -361,7 +364,9 @@ void setup() {
   delay(400);
   Serial.println("\n==================================================");
   Serial.println("  SmartQ Cloud ESP32 DevKit V1 Initializing      ");
-  Serial.println("  Direct Base: https://kandukurijagan1.github.io  ");
+  Serial.print  ("  Base Link: ");
+  Serial.println(BASE_LINK);
+  Serial.println("  Connected directly to GitHub Pages & Supabase  ");
   Serial.println("==================================================");
 
   // Initialize Buzzer
