@@ -989,6 +989,13 @@
         let skippedCount = 1;
         let nextSeq = 29;
 
+        // Clean numeric token formatter (Pure numbers: 1, 2, 19, 24)
+        function formatOnlyNumber(tok) {
+            if (!tok) return '---';
+            const digits = String(tok).replace(/\D/g, '');
+            return digits ? String(parseInt(digits, 10)) : String(tok);
+        }
+
         // Web Audio API Dual-Tone Chime
         let audioCtx = null;
         function playHospitalChime() {
@@ -1062,9 +1069,9 @@
             document.getElementById('statTotal').textContent = completedCount + skippedCount + (currentServing ? 1 : 0) + waitingList.length;
 
             if (currentServing) {
-                document.getElementById('statServing').textContent = currentServing.token_no;
+                document.getElementById('statServing').textContent = formatOnlyNumber(currentServing.token_no);
                 document.getElementById('statServingSub').textContent = currentServing.name + " (" + currentServing.lang.toUpperCase() + ")";
-                document.getElementById('heroTokenNo').textContent = currentServing.token_no;
+                document.getElementById('heroTokenNo').textContent = formatOnlyNumber(currentServing.token_no);
                 document.getElementById('heroCustomerName').textContent = currentServing.name;
                 document.getElementById('heroLanguage').textContent = currentServing.lang.toUpperCase();
                 document.getElementById('servingStatusBadge').textContent = "CALLED";
@@ -1094,7 +1101,7 @@
                 tr.innerHTML = `
                     <td>${idx + 1}</td>
                     <td>
-                        <strong style="font-family:'JetBrains Mono'; color:#38bdf8;">${w.token_no}</strong>
+                        <strong style="font-family:'JetBrains Mono'; color:#38bdf8;">${formatOnlyNumber(w.token_no)}</strong>
                         <div style="font-size:0.68rem; color:#10b981; font-weight:700;">~${eta}m wait</div>
                     </td>
                     <td>${w.name}</td>
@@ -1107,9 +1114,9 @@
 
             // Update TV Wall Display
             if (document.getElementById('tvHeroToken')) {
-                document.getElementById('tvHeroToken').textContent = currentServing ? currentServing.token_no : '---';
+                document.getElementById('tvHeroToken').textContent = currentServing ? formatOnlyNumber(currentServing.token_no) : '---';
                 document.getElementById('tvHeroName').textContent = currentServing ? currentServing.name : 'Counter Ready';
-                document.getElementById('tvC1').textContent = currentServing ? currentServing.token_no : '---';
+                document.getElementById('tvC1').textContent = currentServing ? formatOnlyNumber(currentServing.token_no) : '---';
                 document.getElementById('tvWaitPill').textContent = `${waitingList.length} Waiting`;
                 
                 const tvList = document.getElementById('tvUpcomingTokensList');
@@ -1121,7 +1128,7 @@
                         if (w.is_priority) li.style.borderLeftColor = "#f59e0b";
                         li.innerHTML = `
                             <div>
-                                <strong style="font-family:'JetBrains Mono'; color:#f8fafc;">${w.token_no}</strong>
+                                <strong style="font-family:'JetBrains Mono'; color:#f8fafc;">${formatOnlyNumber(w.token_no)}</strong>
                                 <span style="font-size:0.8rem; color:#cbd5e1; margin-left:6px;">${w.name}</span>
                             </div>
                             <span style="font-size:0.72rem; color:#10b981; font-weight:700;">~${(idx + 1) * 3} mins</span>
@@ -1913,7 +1920,7 @@
                                     void heroCard.offsetWidth;
                                     heroCard.classList.add('pulse-call-highlight');
                                 }
-                                speakAnnouncement(`Token ${currentServing.token_no}, please proceed to Counter 1`, currentServing.lang || 'en');
+                                speakAnnouncement(`Token ${formatOnlyNumber(currentServing.token_no)}, please proceed to Counter 1`, currentServing.lang || 'en');
                             }
                         }
                     } else {
@@ -2004,7 +2011,7 @@
             } else if (ev === 'UPDATE' && newRow) {
                 if (newRow.status === 'CALLED' && newRow.token_no !== lastCalledTokenNo) {
                     lastCalledTokenNo = newRow.token_no;
-                    showToast(`📢 Now Calling: #${newRow.token_no} at Counter 1`, '#f59e0b');
+                    showToast(`📢 Now Calling: #${formatOnlyNumber(newRow.token_no)} at Counter 1`, '#f59e0b');
 
                     const curTab = document.querySelector('.portal-view.active');
                     if (curTab && curTab.id === 'viewDisplay') {
@@ -2015,7 +2022,7 @@
                             void heroCard.offsetWidth;
                             heroCard.classList.add('pulse-call-highlight');
                         }
-                        speakAnnouncement(`Token ${newRow.token_no}, please proceed to Counter 1`, 'en');
+                        speakAnnouncement(`Token ${formatOnlyNumber(newRow.token_no)}, please proceed to Counter 1`, 'en');
                     }
                 }
             }

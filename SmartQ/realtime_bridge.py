@@ -158,21 +158,19 @@ class RealtimeWhatsAppBridge:
             pass
 
     def _sync_cloud_tokens_to_local(self):
-        """Sync any tokens registered on the website into local SQLite."""
+        """Comprehensive dynamic real-time sync from Supabase Cloud to local SQLite."""
         try:
             with get_local_db() as conn:
                 cur = conn.cursor()
-                cur.execute("SELECT coalesce(max(id), 0) as max_id FROM tokens")
-                local_max_id = cur.fetchone()['max_id']
 
+                # Fetch all tokens and customer data from live Supabase Cloud
                 res = self.supabase_client.table('tokens') \
-                    .select('id, token_no, customer_id, status, is_priority, source, counter, created_at, customers(id, name, phone, preferred_language, priority_reason)') \
-                    .gt('id', local_max_id) \
+                    .select('id, token_no, customer_id, status, is_priority, source, counter, called_at, completed_at, created_at, customers(id, name, phone, preferred_language, priority_reason)') \
                     .order('id', desc=False) \
                     .execute()
 
-                new_tokens = res.data or []
-                for tok in new_tokens:
+                all_cloud_tokens = res.data or []
+                for tok in all_cloud_tokens:
                     cust = tok.get('customers')
                     cust_id = tok.get('customer_id')
                     if cust:
@@ -181,7 +179,7 @@ class RealtimeWhatsAppBridge:
                             VALUES (?, ?, ?, ?, ?, ?)
                         """, (
                             cust.get('id', cust_id),
-                            cust.get('name', 'Online Patient'),
+                            cust.get('name', 'Patient'),
                             cust.get('phone', ''),
                             cust.get('preferred_language', 'en'),
                             cust.get('priority_reason', ''),
@@ -189,8 +187,14 @@ class RealtimeWhatsAppBridge:
                         ))
 
                     cur.execute("""
-                        INSERT OR REPLACE INTO tokens (id, token_no, customer_id, status, is_priority, source, counter, created_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        INSERT INTO tokens (id, token_no, customer_id, status, is_priority, source, counter, called_at, completed_at, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ON CONFLICT(id) DO UPDATE SET
+                            token_no = excluded.token_no,
+                            status = excluded.status,
+                            counter = coalesce(excluded.counter, tokens.counter),
+                            called_at = coalesce(excluded.called_at, tokens.called_at),
+                            completed_at = coalesce(excluded.completed_at, tokens.completed_at)
                     """, (
                         tok['id'],
                         tok['token_no'],
@@ -199,33 +203,13 @@ class RealtimeWhatsAppBridge:
                         tok.get('is_priority', 0),
                         tok.get('source', 'web-online'),
                         tok.get('counter', 'Counter 1'),
+                        tok.get('called_at'),
+                        tok.get('completed_at'),
                         tok.get('created_at', datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
                     ))
-                    print(f"[Realtime Bridge] 📥 New online patient token #{tok['token_no']} ({cust.get('name') if cust else 'Patient'}) synced to local counter queue!")
-
-                # Synchronize CALLED, COMPLETED, and SKIPPED token status transitions from Cloud to Local SQLite
-                res_updates = self.supabase_client.table('tokens') \
-                    .select('id, status, counter, called_at, completed_at') \
-                    .in_('status', ['CALLED', 'COMPLETED', 'SKIPPED']) \
-                    .execute()
-
-                for u_tok in (res_updates.data or []):
-                    cur.execute("""
-                        UPDATE tokens 
-                        SET status = ?, counter = coalesce(?, counter),
-                            called_at = coalesce(?, called_at), completed_at = coalesce(?, completed_at)
-                        WHERE id = ? AND status != ?
-                    """, (
-                        u_tok['status'],
-                        u_tok.get('counter'),
-                        u_tok.get('called_at'),
-                        u_tok.get('completed_at'),
-                        u_tok['id'],
-                        u_tok['status']
-                    ))
                 conn.commit()
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[Realtime Bridge Sync Error] {e}")
 
 realtime_bridge = RealtimeWhatsAppBridge.get_instance()
 

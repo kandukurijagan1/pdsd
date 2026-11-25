@@ -3,6 +3,12 @@
  * Subject: Principles of Digital Systems and Design (PDSD)
  */
 
+function formatOnlyNumber(raw) {
+    if (!raw) return '---';
+    const digits = String(raw).replace(/\D/g, '');
+    return digits ? parseInt(digits, 10).toString() : String(raw);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     // State variables
     let currentToken = null;
@@ -208,7 +214,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Current Serving Token
         currentToken = data.current_token;
         if (currentToken) {
-            heroTokenNo.innerText = currentToken.token_no;
+            const cleanTokenNum = formatOnlyNumber(currentToken.token_no);
+            heroTokenNo.innerText = cleanTokenNum;
             heroCustomerName.innerText = currentToken.name || 'Walk-in Customer';
             heroLanguage.innerText = (currentToken.preferred_language || 'en').toUpperCase();
             
@@ -222,7 +229,7 @@ document.addEventListener('DOMContentLoaded', () => {
             servingStatusBadge.innerText = 'SERVING NOW';
             servingStatusBadge.className = 'status-indicator live';
 
-            statServing.innerText = currentToken.token_no;
+            statServing.innerText = cleanTokenNum;
             statServingSub.innerText = currentToken.name || 'Serving';
 
             btnRepeatCall.disabled = false;
@@ -317,7 +324,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <tr>
                     <td><strong>${idx + 1}</strong></td>
                     <td class="token-cell">
-                        <div>${t.token_no}</div>
+                        <div style="font-size:1.15rem; font-weight:800; color:#38bdf8;">${formatOnlyNumber(t.token_no)}</div>
                         <span style="color:#10b981; font-size:0.7rem; font-weight:700; background:rgba(16,185,129,0.15); padding:1px 5px; border-radius:4px;">~${estWait}m</span>
                     </td>
                     <td>

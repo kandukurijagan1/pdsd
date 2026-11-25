@@ -92,7 +92,7 @@ def init_db():
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS tokens (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                token_no TEXT UNIQUE NOT NULL,
+                token_no TEXT NOT NULL,
                 customer_id INTEGER,
                 status TEXT NOT NULL DEFAULT 'WAITING',
                 is_priority INTEGER DEFAULT 0,
@@ -1186,17 +1186,58 @@ def api_get_voice_session():
 
 @app.route('/api/device/token', methods=['POST'])
 def api_device_token():
-    """ESP32 GET TOKEN button press handler (starts voice session or creates direct token)."""
-    # Start the voice session state for LCD/Kiosk
-    set_setting('voice_session_state', 'LISTENING_NAME')
-    set_setting('voice_session_patient_name', '')
-    set_setting('voice_session_token_no', '')
-    set_setting('voice_session_updated', datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+    """ESP32 GET TOKEN switch handler (generates instant pure numeric token)."""
+    token_no = generate_next_token_number()
+    seq_digits = re.sub(r'\D', '', str(token_no))
+    numeric_token = str(int(seq_digits)) if seq_digits else str(token_no)
+
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO customers (name, phone, preferred_language, created_at)
+            VALUES ('Walk-in Patient', '918367047947', 'en', datetime('now', 'localtime'))
+        """)
+        cust_id = cur.lastrowid
+        cur.execute("""
+            INSERT INTO tokens (token_no, customer_id, status, is_priority, source, counter, created_at)
+            VALUES (?, ?, 'WAITING', 0, 'kiosk-button', 'Counter 1', datetime('now', 'localtime'))
+        """, (numeric_token, cust_id))
+        tok_id = cur.lastrowid
+        conn.commit()
+
+    # Mirror to Supabase Cloud
+    try:
+        from supabase_service import get_supabase
+        sb = get_supabase()
+        if sb:
+            cust_res = sb.table('customers').insert({
+                'name': 'Walk-in Patient',
+                'phone': '8367047947',
+                'preferred_language': 'en'
+            }).execute()
+            new_cust_id = cust_res.data[0]['id'] if (cust_res.data and len(cust_res.data) > 0) else None
+            sb.table('tokens').insert({
+                'token_no': numeric_token,
+                'customer_id': new_cust_id,
+                'status': 'WAITING',
+                'is_priority': 0,
+                'source': 'kiosk-button',
+                'counter': 'Counter 1'
+            }).execute()
+            print(f"[Device Token] ✅ Successfully synced Token #{numeric_token} to Supabase Cloud!")
+    except Exception as e:
+        print(f"[Device Token] Supabase sync note: {e}")
+
+    # Ensure voice state is IDLE
+    set_setting('voice_session_state', 'IDLE')
 
     return jsonify({
         'success': True,
-        'state': 'LISTENING_NAME',
-        'message': 'Voice registration activated. Listening for patient name.',
+        'token_no': numeric_token,
+        'state': 'ISSUED',
+        'message': f'Token {numeric_token} generated successfully from physical kiosk!',
+        'lcd_line0': 'Walk-in Patient',
+        'lcd_line1': f'Token: {numeric_token}',
         'counter': get_setting('counter_name', 'Counter 1')
     }), 200
 
@@ -1207,10 +1248,11 @@ def api_device_status():
         cur = conn.cursor()
 
         cur.execute("""
-            SELECT token_no, counter, is_priority 
-            FROM tokens 
-            WHERE status = 'CALLED' 
-            ORDER BY called_at DESC LIMIT 1
+            SELECT t.token_no, t.counter, t.is_priority, c.name as patient_name
+            FROM tokens t
+            LEFT JOIN customers c ON t.customer_id = c.id
+            WHERE t.status = 'CALLED' 
+            ORDER BY t.called_at DESC, t.id DESC LIMIT 1
         """)
         called_row = cur.fetchone()
 
@@ -1222,7 +1264,14 @@ def api_device_status():
         voice_name = get_setting('voice_session_patient_name', '')
         voice_token = get_setting('voice_session_token_no', '')
 
-        # Determine LCD display lines for ESP32
+        clean_tok = ""
+        if called_row:
+            p_name = called_row['patient_name'] or "Patient"
+            raw_tok = str(called_row['token_no'])
+            digits = re.sub(r'\D', '', raw_tok)
+            clean_tok = str(int(digits)) if digits else raw_tok
+
+        # Determine LCD display lines for ESP32: Name on Line 0, Pure numeric Token on Line 1
         if voice_state == 'LISTENING_NAME':
             lcd_l0 = "Speak Your Name "
             lcd_l1 = "Listening Mic..."
@@ -1231,19 +1280,23 @@ def api_device_status():
             lcd_l0 = f"Name: {disp_name:<10}"
             lcd_l1 = "Speak Mobile No "
         elif voice_state == 'COMPLETED' and voice_token:
-            lcd_l0 = f"Token: {voice_token:<9}"
+            digits = re.sub(r'\D', '', str(voice_token))
+            v_tok = str(int(digits)) if digits else str(voice_token)
             disp_name = voice_name[:16] if voice_name else "Registered"
-            lcd_l1 = f"{disp_name:<16}"
+            lcd_l0 = f"{disp_name:<16}"
+            lcd_l1 = f"Token: {v_tok}"
         elif called_row:
-            lcd_l0 = f"Serving: {called_row['token_no']}" + ("*" if called_row['is_priority'] else "")
-            lcd_l1 = f"Wait: {waiting_count} | Press "
+            p_name = called_row['patient_name'] or "Patient"
+            lcd_l0 = p_name[:16]
+            lcd_l1 = f"Token: {clean_tok}"
         else:
-            lcd_l0 = "SmartQ Kiosk   "
-            lcd_l1 = f"Wait: {waiting_count} | Press "
+            lcd_l0 = "SmartQ Counter 1"
+            lcd_l1 = f"Ready | Wait: {waiting_count}"
 
         return jsonify({
             'success': True,
-            'serving': called_row['token_no'] if called_row else 'None',
+            'serving': clean_tok if called_row else 'None',
+            'patient_name': called_row['patient_name'] if called_row else '',
             'is_priority': bool(called_row['is_priority']) if called_row else False,
             'counter': get_setting('counter_name', 'Counter 1'),
             'waiting': waiting_count,
@@ -1280,9 +1333,17 @@ def api_device_repeat():
         """, (token_data['id'], lang, f"Repeated call for {token_data['token_no']} via device"))
         conn.commit()
 
+        digits = re.sub(r'\D', '', str(token_data['token_no']))
+        clean_tok = str(int(digits)) if digits else str(token_data['token_no'])
+        p_name = token_data.get('name') or 'Patient'
+
         return jsonify({
             'success': True,
             'token': token_data,
+            'token_no': clean_tok,
+            'patient_name': p_name,
+            'lcd_line0': 'REPEAT CALL',
+            'lcd_line1': f"Token: {clean_tok}",
             'announcement': announcements,
             'preferred_language': lang
         })

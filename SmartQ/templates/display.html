@@ -523,6 +523,12 @@
         // Live Queue State Tracking
         let lastCalledTokenNo = null;
 
+        function formatOnlyNumber(raw) {
+            if (!raw) return '---';
+            const digits = String(raw).replace(/\D/g, '');
+            return digits ? parseInt(digits, 10).toString() : String(raw);
+        }
+
         async function fetchQueueStatus() {
             try {
                 const res = await fetch('/api/queue');
@@ -533,10 +539,11 @@
                 // Currently Called Token
                 const current = d.current_token;
                 if (current) {
-                    document.getElementById('heroTokenDisplay').textContent = current.token_no;
+                    const cleanNum = formatOnlyNumber(current.token_no);
+                    document.getElementById('heroTokenDisplay').textContent = cleanNum;
                     document.getElementById('heroPatientName').textContent = current.name || 'Walk-in Patient';
                     document.getElementById('heroCounterBadge').textContent = (current.counter || 'Counter 1').toUpperCase();
-                    document.getElementById('c1Token').textContent = current.token_no;
+                    document.getElementById('c1Token').textContent = cleanNum;
 
                     // Trigger flash & speech if new call detected
                     if (lastCalledTokenNo && lastCalledTokenNo !== current.token_no) {
