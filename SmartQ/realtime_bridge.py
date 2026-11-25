@@ -32,6 +32,11 @@ load_dotenv(os.path.join(BASE_DIR, '.env'))
 LOCAL_GATEWAY_URL = os.getenv('WHATSAPP_LOCAL_GATEWAY_URL', 'http://127.0.0.1:3005').strip()
 DB_PATH = os.path.join(BASE_DIR, 'smartq.db')
 
+def get_local_db():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
 import subprocess
 
 def ensure_microservice_running():
