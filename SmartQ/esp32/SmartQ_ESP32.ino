@@ -41,9 +41,8 @@
 const char* WIFI_SSID     = "JAGAN_KANDUKURI";
 const char* WIFI_PASSWORD = "9701991892";
 
-// Your Laptop's LAN IP where Flask app.py is running
-// (Pre-configured from your ipconfig: 172.24.25.27)
-const char* SERVER_HOST   = "172.24.25.27";
+// Active Laptop LAN IP where Flask server is running
+const char* SERVER_HOST   = "10.74.66.184";
 const int   SERVER_PORT   = 5000;
 
 // Base API URL
@@ -72,17 +71,17 @@ uint8_t detectedI2CAddress = 0x27;
 // =========================================================================================
 // 3. Timing & State Variables
 // =========================================================================================
-const unsigned long DEBOUNCE_DELAY       = 250;   // ms debounce for switches
-const unsigned long STATUS_POLL_INTERVAL = 3000;  // Poll queue status every 3s
-const unsigned long TEMP_DISPLAY_TIME    = 4000;  // Hold button messages on LCD for 4s
+const unsigned long STATUS_POLL_INTERVAL = 2500;  // Poll queue status every 2.5s
+const unsigned long TEMP_DISPLAY_TIME    = 3500;  // Hold button messages on LCD for 3.5s
+const unsigned long SWITCH_COOLDOWN_MS   = 600;   // Cooldown between switch clicks
 
 int lastBtnGetTokenState = HIGH;
 int lastBtnRepeatState   = HIGH;
 int lastBtnHelpState     = HIGH;
 
-unsigned long lastDebounceGetToken = 0;
-unsigned long lastDebounceRepeat   = 0;
-unsigned long lastDebounceHelp     = 0;
+unsigned long lastTriggerGetToken = 0;
+unsigned long lastTriggerRepeat   = 0;
+unsigned long lastTriggerHelp     = 0;
 
 unsigned long lastStatusPoll     = 0;
 unsigned long tempDisplayUntil   = 0;
@@ -181,24 +180,24 @@ void connectWiFi() {
     beepShort();
     showLCDMessage("WiFi Connected!", WiFi.localIP().toString(), 2500);
   } else {
-    Serial.println("\n[WiFi] Connection Failed! Check SSID/Password or AP Isolation.");
+    Serial.println("\n[WiFi] Connection Failed! Check Hotspot.");
     beepDouble();
     showLCDMessage("WiFi Failed!", "Check Hotspot", 3000);
   }
 }
 
 // =========================================================================================
-// 7. Event Handler 1: GET TOKEN (GPIO 25) - Generates Token Instantly
+// 7. Event Handler 1: GET TOKEN (GPIO 25) - Generates Pure Numeric Token Instantly
 // =========================================================================================
 void handleGetToken() {
   Serial.println("\n>>> [EVENT] GET TOKEN Switch Triggered!");
-  showLCDMessage("Generating Token", "Please wait...");
   beepShort();
+  showLCDMessage("Generating Token", "Please wait...");
 
   if (WiFi.status() != WL_CONNECTED) {
     connectWiFi();
     if (WiFi.status() != WL_CONNECTED) {
-      showLCDMessage("Error: No WiFi", "Connect Hotspot", 2500);
+      showLCDMessage("Error: No WiFi", "Connect Hotspot", 2000);
       return;
     }
   }
@@ -207,10 +206,9 @@ void handleGetToken() {
   String endpoint = serverUrl + "/api/device/token";
   http.begin(endpoint);
   http.addHeader("Content-Type", "application/json");
-  http.setTimeout(4000);
+  http.setTimeout(1500);
 
-  // Send direct token generation request
-  int httpCode = http.POST("{\"direct\": true}");
+  int httpCode = http.POST("{}");
 
   if (httpCode == 200 || httpCode == 201) {
     String payload = http.getString();
@@ -237,7 +235,7 @@ void handleGetToken() {
     }
   } else {
     Serial.printf("[HTTP ERROR] Failed with code: %d\n", httpCode);
-    showLCDMessage("Server Error", "Code: " + String(httpCode), 2500);
+    showLCDMessage("Server Error", "Code: " + String(httpCode), 2000);
   }
 
   http.end();
@@ -248,6 +246,7 @@ void handleGetToken() {
 // =========================================================================================
 void handleRepeatCall() {
   Serial.println("\n>>> [EVENT] REPEAT Switch Triggered!");
+  beepShort();
   showLCDMessage("Repeating Call..", "Please listen..");
 
   if (WiFi.status() != WL_CONNECTED) {
@@ -259,7 +258,7 @@ void handleRepeatCall() {
   String endpoint = serverUrl + "/api/device/repeat";
   http.begin(endpoint);
   http.addHeader("Content-Type", "application/json");
-  http.setTimeout(3000);
+  http.setTimeout(1500);
 
   int httpCode = http.POST("{}");
 
@@ -281,17 +280,15 @@ void handleRepeatCall() {
 // =========================================================================================
 void handleHelpRequest() {
   Serial.println("\n>>> [EVENT] HELP Switch Triggered!");
-  showLCDMessage("! HELP CALLED !", "Staff Notified..");
-
-  // Urgent local audible alert
   beepHelpAlert();
+  showLCDMessage("! HELP CALLED !", "Staff Notified..");
 
   if (WiFi.status() == WL_CONNECTED) {
     HTTPClient http;
     String endpoint = serverUrl + "/api/device/help";
     http.begin(endpoint);
     http.addHeader("Content-Type", "application/json");
-    http.setTimeout(3000);
+    http.setTimeout(1500);
 
     int httpCode = http.POST("{}");
     Serial.printf("[HTTP %d] Help Alert Sent to Dashboard!\n", httpCode);
@@ -310,7 +307,7 @@ void pollServerStatus() {
   HTTPClient http;
   String endpoint = serverUrl + "/api/device/status";
   http.begin(endpoint);
-  http.setTimeout(2500);
+  http.setTimeout(1500);
 
   int httpCode = http.GET();
 
@@ -361,7 +358,7 @@ void pollServerStatus() {
 // =========================================================================================
 void setup() {
   Serial.begin(115200);
-  delay(600);
+  delay(400);
   Serial.println("\n==================================================");
   Serial.println("  SmartQ ESP32 DevKit V1 Hardware Initializing   ");
   Serial.println("==================================================");
@@ -407,43 +404,49 @@ void loop() {
   }
 
   // -------------------------------------------------------------
-  // Switch 1: GET TOKEN (GPIO 25)
+  // Switch 1: GET TOKEN (GPIO 25) - Instant & Non-blocking
   // -------------------------------------------------------------
   int readingGetToken = digitalRead(PIN_BTN_GET_TOKEN);
-  if ((currentMillis - lastDebounceGetToken) > DEBOUNCE_DELAY) {
-    if (readingGetToken != lastBtnGetTokenState) {
-      lastDebounceGetToken = currentMillis;
+  if (readingGetToken != lastBtnGetTokenState) {
+    if (currentMillis - lastTriggerGetToken > SWITCH_COOLDOWN_MS) {
+      lastTriggerGetToken = currentMillis;
       lastBtnGetTokenState = readingGetToken;
       handleGetToken();
+    } else {
+      lastBtnGetTokenState = readingGetToken;
     }
   }
 
   // -------------------------------------------------------------
-  // Switch 2: REPEAT (GPIO 26)
+  // Switch 2: REPEAT (GPIO 26) - Instant & Non-blocking
   // -------------------------------------------------------------
   int readingRepeat = digitalRead(PIN_BTN_REPEAT);
-  if ((currentMillis - lastDebounceRepeat) > DEBOUNCE_DELAY) {
-    if (readingRepeat != lastBtnRepeatState) {
-      lastDebounceRepeat = currentMillis;
+  if (readingRepeat != lastBtnRepeatState) {
+    if (currentMillis - lastTriggerRepeat > SWITCH_COOLDOWN_MS) {
+      lastTriggerRepeat = currentMillis;
       lastBtnRepeatState = readingRepeat;
       handleRepeatCall();
+    } else {
+      lastBtnRepeatState = readingRepeat;
     }
   }
 
   // -------------------------------------------------------------
-  // Switch 3: HELP (GPIO 27)
+  // Switch 3: HELP (GPIO 27) - Instant & Non-blocking
   // -------------------------------------------------------------
   int readingHelp = digitalRead(PIN_BTN_HELP);
-  if ((currentMillis - lastDebounceHelp) > DEBOUNCE_DELAY) {
-    if (readingHelp != lastBtnHelpState) {
-      lastDebounceHelp = currentMillis;
+  if (readingHelp != lastBtnHelpState) {
+    if (currentMillis - lastTriggerHelp > SWITCH_COOLDOWN_MS) {
+      lastTriggerHelp = currentMillis;
       lastBtnHelpState = readingHelp;
       handleHelpRequest();
+    } else {
+      lastBtnHelpState = readingHelp;
     }
   }
 
   // -------------------------------------------------------------
-  // Periodic Background Polling for LCD Screen (Every 3 seconds)
+  // Periodic Background Polling for LCD Screen (Every 2.5 seconds)
   // -------------------------------------------------------------
   if (currentMillis - lastStatusPoll >= STATUS_POLL_INTERVAL) {
     lastStatusPoll = currentMillis;
@@ -451,7 +454,7 @@ void loop() {
   }
 
   // Auto-reconnect Wi-Fi if connection dropped
-  if (WiFi.status() != WL_CONNECTED && (currentMillis % 10000 < 60)) {
+  if (WiFi.status() != WL_CONNECTED && (currentMillis % 10000 < 50)) {
     Serial.println("[WiFi] Connection lost. Attempting reconnect...");
     WiFi.reconnect();
   }
