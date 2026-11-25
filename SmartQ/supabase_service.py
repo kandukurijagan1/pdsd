@@ -276,3 +276,68 @@ def sync_full_database_to_supabase(sqlite_conn):
         'message': f"Synced {stats['customers']} customers, {stats['tokens']} tokens, and {stats['settings']} settings to Supabase.",
         'stats': stats
     }
+
+
+def sync_from_supabase_to_local_db(db_path=None):
+    """
+    Pulls all tokens and customers from Supabase Cloud down into the local SQLite database,
+    ensuring 100% real-time dynamic parity between GitHub Pages and localhost.
+    """
+    client = get_supabase()
+    if not client:
+        return {'success': False, 'error': 'Supabase not connected'}
+
+    if db_path is None:
+        db_path = os.path.join(BASE_DIR, 'smartq.db')
+
+    import sqlite3
+    try:
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+
+        # 1. Fetch customers from Supabase Cloud
+        res_cust = client.table('customers').select('*').execute()
+        if res_cust and res_cust.data:
+            for c in res_cust.data:
+                cur.execute("""
+                    INSERT INTO customers (id, name, phone, email, preferred_language, priority_reason)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(id) DO UPDATE SET
+                        name=excluded.name,
+                        phone=excluded.phone,
+                        email=excluded.email,
+                        preferred_language=excluded.preferred_language,
+                        priority_reason=excluded.priority_reason
+                """, (c.get('id'), c.get('name'), c.get('phone'), c.get('email'), c.get('preferred_language', 'en'), c.get('priority_reason')))
+
+        # 2. Fetch tokens from Supabase Cloud
+        res_tok = client.table('tokens').select('*').order('id', desc=False).execute()
+        if res_tok and res_tok.data:
+            for t in res_tok.data:
+                # Format token_no to pure digits
+                raw_tok = str(t.get('token_no', ''))
+                digits = ''.join(ch for ch in raw_tok if ch.isdigit())
+                clean_tok = str(int(digits)) if digits else raw_tok
+
+                cur.execute("""
+                    INSERT INTO tokens (id, token_no, customer_id, status, is_priority, source, counter, called_at, completed_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(id) DO UPDATE SET
+                        token_no=excluded.token_no,
+                        customer_id=excluded.customer_id,
+                        status=excluded.status,
+                        is_priority=excluded.is_priority,
+                        source=excluded.source,
+                        counter=excluded.counter,
+                        called_at=excluded.called_at,
+                        completed_at=excluded.completed_at
+                """, (t.get('id'), clean_tok, t.get('customer_id'), t.get('status', 'WAITING'), t.get('is_priority', 0), t.get('source', 'kiosk'), t.get('counter', 'Counter 1'), t.get('called_at'), t.get('completed_at')))
+
+        conn.commit()
+        conn.close()
+        print(f"[Supabase Sync Down] Successfully synchronized {len(res_tok.data)} tokens to local database.")
+        return {'success': True, 'count': len(res_tok.data)}
+    except Exception as e:
+        print(f"[Supabase Sync Down] Error: {e}")
+        return {'success': False, 'error': str(e)}
+

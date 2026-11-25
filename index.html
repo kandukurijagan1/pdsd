@@ -421,9 +421,12 @@
                             </div>
 
                             <!-- WhatsApp Direct Alert Banner -->
-                            <div style="margin-top: 1rem; text-align: center;">
+                            <div style="margin-top: 1rem; text-align: center; display: flex; justify-content: center; gap: 8px; flex-wrap: wrap;">
                                 <button onclick="sendDirectWhatsAppToCurrent()" class="btn btn-sm" style="background:#25D366; color:#ffffff; font-weight:700; border:none; padding:0.5rem 1.25rem; border-radius:8px; cursor:pointer;">
-                                    💬 Send WhatsApp Turn Notification via Microservice (:3005)
+                                    💬 Open WhatsApp Chat for Active Patient (+91 8367047947)
+                                </button>
+                                <button onclick="triggerEmergencyWhatsAppAlert()" class="btn btn-sm" style="background:#dc2626; color:#ffffff; font-weight:700; border:none; padding:0.5rem 1.25rem; border-radius:8px; cursor:pointer;">
+                                    🚨 Dispatch Emergency WhatsApp Alert
                                 </button>
                             </div>
 
@@ -1575,8 +1578,34 @@
         }
 
         function sendDirectWhatsAppToCurrent() {
-            if (!currentServing) return;
-            alert(`✅ DELIVERED to +91${currentServing.phone} via Local Microservice (:3005)!\n\n"SmartQ: Hello ${currentServing.name}, Token ${currentServing.token_no} is now being called at Counter 1."`);
+            if (!currentServing) {
+                showToast("⚠️ No patient is currently being called at Counter 1.", "#eab308");
+                return;
+            }
+            const phone = currentServing.phone || '8367047947';
+            const digits = String(phone).replace(/\D/g, '').slice(-10);
+            const tokenNo = formatOnlyNumber(currentServing.token_no);
+            const name = currentServing.name || 'Patient';
+            const msg = `📢 *SmartQ Clinic - Your Turn Now!*\n------------------------------------\nHello *${name}*,\nToken Number: *#${tokenNo}*.\n\nPlease proceed immediately to *Counter 1*!\nOur doctor and staff are ready to attend to you.\n\n🔗 Live Mobile Pass & QR:\nhttps://kandukurijagan1.github.io/pdsd/track.html?token=${tokenNo}`;
+            
+            const encoded = encodeURIComponent(msg);
+            const waUrl = `https://wa.me/91${digits}?text=${encoded}`;
+            window.open(waUrl, '_blank');
+            showToast(`🚀 Opening WhatsApp for +91 ${digits} (Token #${tokenNo})!`, '#10b981');
+        }
+
+        function triggerEmergencyWhatsAppAlert() {
+            const emergencyPhone = '8367047947';
+            const tokenNo = currentServing ? formatOnlyNumber(currentServing.token_no) : 'N/A';
+            const patientName = currentServing ? currentServing.name : 'Emergency Patient';
+            const timeStr = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+            
+            const msg = `🚨 *SMARTQ EMERGENCY HELP ALARM TRIGGERED!*\n----------------------------------------------------\n⚠️ *Priority Alert:* Emergency Help Switch pressed on Kiosk Counter 1.\n⏰ *Triggered At:* ${timeStr}\n🏥 *Service Counter:* Counter 1 (General OPD / Emergency)\n🎟️ *Active Token:* #${tokenNo} (${patientName})\n🔔 *Buzzer Status:* Hardware continuous buzzer ACTIVATED\n\n🔗 Live Emergency Dashboard:\nhttps://kandukurijagan1.github.io/pdsd/\n\n_Immediate clinical assistance required at Counter 1._`;
+            
+            const encoded = encodeURIComponent(msg);
+            const waUrl = `https://wa.me/91${emergencyPhone}?text=${encoded}`;
+            window.open(waUrl, '_blank');
+            showToast(`🚨 Emergency WhatsApp alert opened for +91 ${emergencyPhone}!`, '#dc2626');
         }
 
         // Patient Registration

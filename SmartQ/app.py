@@ -2170,6 +2170,14 @@ def api_realtime_bridge_status():
 if __name__ == '__main__':
     init_db()
     
+    # 100% Dynamic Sync from GitHub Pages Cloud Database (Supabase) to Localhost
+    try:
+        from supabase_service import sync_from_supabase_to_local_db
+        print("[Startup] Synchronizing local SQLite database directly from Supabase Cloud...")
+        sync_from_supabase_to_local_db()
+    except Exception as e:
+        print(f"[Startup Supabase Sync] Note: {e}")
+    
     # Start Realtime Cloud-to-Local WhatsApp Bridge
     try:
         from realtime_bridge import realtime_bridge
