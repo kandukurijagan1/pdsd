@@ -13,9 +13,9 @@
  * Architecture:
  *   - Core 0 (TaskCloudSync): Asynchronous TLS/HTTPS polling (every 1.5s) to Supabase Cloud
  *                             REST API. Processes switch events from xHardwareEventQueue.
- *   - Core 1 (loop / UI):     Microsecond switch scanning, hardware debouncing (600ms cooldown),
- *                             immediate buzzer acoustic feedback (<1ms), and flicker-free 16x2
- *                             LCD delta rendering (updates only characters that changed).
+ *   - Core 1 (loop / UI):     Ultra-reliable 35ms stable-state debouncer, immediate buzzer
+ *                             acoustic feedback (<1ms), and flicker-free 16x2 LCD delta
+ *                             rendering (updates only characters that changed).
  *
  * Physical Breadboard Pinout (Verified & Tested):
  * -----------------------------------------------------------------------------------------
@@ -26,9 +26,9 @@
  *  16x2 LCD VCC            VIN (5V)           Left side, Pin 15 (Bottom-most left pin)
  *  16x2 LCD GND            GND                Right side, Pin 14 (Next to 3V3)
  *  
- *  GET TOKEN Switch        GPIO 25 (D25)      Left side, Pin 8 from USB (Other pin -> GND)
- *  REPEAT Switch           GPIO 26 (D26)      Left side, Pin 9 from USB (Other pin -> GND)
- *  HELP Switch             GPIO 27 (D27)      Left side, Pin 10 from USB (Other pin -> GND)
+ *  GET TOKEN Switch        GPIO 25 (D25)      Left side, Pin 8 from USB (Other leg -> GND)
+ *  REPEAT Switch           GPIO 26 (D26)      Left side, Pin 9 from USB (Other leg -> GND)
+ *  HELP Switch             GPIO 27 (D27)      Left side, Pin 10 from USB (Other leg -> GND)
  *  
  *  Active Buzzer (+)       GPIO 18 (D18)      Right side, Pin 7 from USB
  *  Active Buzzer (-)       GND                Right side, Pin 14 (Common Ground)
@@ -75,8 +75,15 @@ const String CLOUD_OUTBOX_URL   = "https://" + String(SUPABASE_HOST) + "/rest/v1
 #define LCD_ROWS               2
 
 // =========================================================================================
-// 3. FreeRTOS Inter-Task Communication & Data Structures
+// 3. Custom Structures (Declared Early for Prototype Resolution)
 // =========================================================================================
+struct DebouncedButton {
+  int pin;
+  int debouncedState;
+  int lastRawReading;
+  unsigned long lastChangeTime;
+};
+
 enum EventType {
   EVENT_NONE = 0,
   EVENT_GET_TOKEN,
@@ -84,11 +91,10 @@ enum EventType {
   EVENT_HELP_ALERT
 };
 
-// Queue for delivering hardware switch events from Core 1 to Core 0
-QueueHandle_t xHardwareEventQueue = NULL;
-
-// Mutex for protecting shared LCD display data across cores
-SemaphoreHandle_t xDisplayMutex = NULL;
+struct HardwareEvent {
+  EventType type;
+  int tokenNumber;
+};
 
 struct DisplayState {
   char line0[32];
@@ -96,6 +102,12 @@ struct DisplayState {
   bool isTemporary;
   unsigned long tempUntil;
 };
+
+// =========================================================================================
+// 4. Global Variables & FreeRTOS Handles
+// =========================================================================================
+QueueHandle_t xHardwareEventQueue = NULL;
+SemaphoreHandle_t xDisplayMutex   = NULL;
 
 DisplayState currentDisplay = {"SmartQ Hospital", "Connecting WiFi.", false, 0};
 
@@ -108,8 +120,15 @@ String currentServingToken = "";
 String currentPatientName  = "";
 int nextWalkInTokenNumber   = 42;
 
+// Button instances
+DebouncedButton btnGetToken = { PIN_BTN_GET_TOKEN, HIGH, HIGH, 0 };
+DebouncedButton btnRepeat   = { PIN_BTN_REPEAT,    HIGH, HIGH, 0 };
+DebouncedButton btnHelp     = { PIN_BTN_HELP,      HIGH, HIGH, 0 };
+
+const unsigned long DEBOUNCE_STABLE_TIME = 35; // 35ms stable filter
+
 // =========================================================================================
-// 4. Acoustic Feedback Subsystem (Buzzer)
+// 5. Acoustic Feedback Subsystem (Buzzer)
 // =========================================================================================
 void playBeep(int durationMs) {
   digitalWrite(PIN_BUZZER, HIGH);
@@ -122,9 +141,9 @@ void soundBeepShort() {
 }
 
 void soundBeepDouble() {
-  playBeep(90);
-  delay(80);
-  playBeep(90);
+  playBeep(80);
+  delay(60);
+  playBeep(80);
 }
 
 void soundChimeAlert() {
@@ -135,13 +154,13 @@ void soundChimeAlert() {
 
 void soundEmergencyAlert() {
   for (int i = 0; i < 4; i++) {
-    playBeep(120);
-    delay(80);
+    playBeep(100);
+    delay(60);
   }
 }
 
 // =========================================================================================
-// 5. Display Subsystem (Flicker-Free Delta Rendering & Text Management)
+// 6. Display Subsystem (Flicker-Free Delta Rendering & Text Management)
 // =========================================================================================
 uint8_t detectI2CAddress() {
   Wire.begin(PIN_LCD_SDA, PIN_LCD_SCL);
@@ -209,7 +228,7 @@ void renderLCDDelta(const char* l0, const char* l1) {
 }
 
 // =========================================================================================
-// 6. Cloud Communication Engine (Runs on Core 0)
+// 7. Cloud Communication Engine (Runs on Core 0)
 // =========================================================================================
 void TaskCloudSync(void* pvParameters) {
   Serial.println("[Core 0] Cloud Sync Engine Started.");
@@ -223,7 +242,7 @@ void TaskCloudSync(void* pvParameters) {
 
   // Query highest existing token on startup to synchronize walk-in sequence
   if (WiFi.status() == WL_CONNECTED) {
-    String maxQueryUrl = "https://" + String(SUPABASE_HOST) + "/rest/v1/tokens?select=token_no&order=id.desc&limit=20";
+    String maxQueryUrl = "https://" + String(SUPABASE_HOST) + "/rest/v1/tokens?select=token_no&order=id.desc&limit=25";
     https.begin(secureClient, maxQueryUrl);
     https.addHeader("apikey", SUPABASE_KEY);
     https.addHeader("Authorization", "Bearer " + String(SUPABASE_KEY));
@@ -255,11 +274,11 @@ void TaskCloudSync(void* pvParameters) {
     unsigned long now = millis();
 
     // 1. Process Hardware Switch Events from Core 1
-    EventType event;
+    HardwareEvent event;
     if (xQueueReceive(xHardwareEventQueue, &event, 0) == pdTRUE) {
       if (WiFi.status() == WL_CONNECTED) {
-        if (event == EVENT_GET_TOKEN) {
-          String newTokNo = String(nextWalkInTokenNumber++);
+        if (event.type == EVENT_GET_TOKEN) {
+          String newTokNo = String(event.tokenNumber);
           Serial.printf("[Core 0] Dispatching POST to Supabase for Token #%s\n", newTokNo.c_str());
 
           https.begin(secureClient, CLOUD_TOKENS_URL);
@@ -274,7 +293,20 @@ void TaskCloudSync(void* pvParameters) {
           Serial.printf("[Core 0] Supabase Token Insert Response: %d\n", code);
           https.end();
 
-        } else if (event == EVENT_HELP_ALERT) {
+        } else if (event.type == EVENT_REPEAT_CALL) {
+          Serial.println("[Core 0] Processing Repeat Call Event on Supabase Cloud...");
+          if (currentServingToken.length() > 0) {
+            String updateUrl = "https://" + String(SUPABASE_HOST) + "/rest/v1/tokens?status=eq.CALLED&counter=eq.Counter%201";
+            https.begin(secureClient, updateUrl);
+            https.addHeader("apikey", SUPABASE_KEY);
+            https.addHeader("Authorization", "Bearer " + String(SUPABASE_KEY));
+            https.addHeader("Content-Type", "application/json");
+            https.setTimeout(2500);
+            https.PATCH("{\"called_at\":\"2026-11-25T12:00:00Z\"}");
+            https.end();
+          }
+
+        } else if (event.type == EVENT_HELP_ALERT) {
           Serial.println("[Core 0] Dispatching Urgent Help Alert to Supabase Cloud...");
           https.begin(secureClient, CLOUD_OUTBOX_URL);
           https.addHeader("apikey", SUPABASE_KEY);
@@ -359,16 +391,27 @@ void TaskCloudSync(void* pvParameters) {
 }
 
 // =========================================================================================
-// 7. Hardware & Switch Scanner Engine (Runs on Core 1)
+// 8. Industrial Stable-State Switch Debounce Engine
 // =========================================================================================
-int lastSwitchStateGetToken = HIGH;
-int lastSwitchStateRepeat   = HIGH;
-int lastSwitchStateHelp     = HIGH;
+bool checkButtonPressed(DebouncedButton* btn, unsigned long now) {
+  int raw = digitalRead(btn->pin);
 
-unsigned long lastTriggerTimeGetToken = 0;
-unsigned long lastTriggerTimeRepeat   = 0;
-unsigned long lastTriggerTimeHelp     = 0;
-const unsigned long DEBOUNCE_COOLDOWN = 600; // ms
+  if (raw != btn->lastRawReading) {
+    btn->lastChangeTime = now;
+    btn->lastRawReading = raw;
+  }
+
+  if ((now - btn->lastChangeTime) >= DEBOUNCE_STABLE_TIME) {
+    if (raw != btn->debouncedState) {
+      btn->debouncedState = raw;
+      if (btn->debouncedState == LOW) {
+        // Confirmed transition from HIGH to LOW (Active LOW Button Pressed!)
+        return true;
+      }
+    }
+  }
+  return false;
+}
 
 void setup() {
   Serial.begin(115200);
@@ -388,12 +431,17 @@ void setup() {
   pinMode(PIN_BTN_REPEAT,    INPUT_PULLUP);
   pinMode(PIN_BTN_HELP,      INPUT_PULLUP);
 
-  lastSwitchStateGetToken = digitalRead(PIN_BTN_GET_TOKEN);
-  lastSwitchStateRepeat   = digitalRead(PIN_BTN_REPEAT);
-  lastSwitchStateHelp     = digitalRead(PIN_BTN_HELP);
+  btnGetToken.debouncedState = digitalRead(PIN_BTN_GET_TOKEN);
+  btnGetToken.lastRawReading = btnGetToken.debouncedState;
+
+  btnRepeat.debouncedState   = digitalRead(PIN_BTN_REPEAT);
+  btnRepeat.lastRawReading   = btnRepeat.debouncedState;
+
+  btnHelp.debouncedState     = digitalRead(PIN_BTN_HELP);
+  btnHelp.lastRawReading     = btnHelp.debouncedState;
 
   // FreeRTOS Inter-Task Sync
-  xHardwareEventQueue = xQueueCreate(10, sizeof(EventType));
+  xHardwareEventQueue = xQueueCreate(10, sizeof(HardwareEvent));
   xDisplayMutex       = xSemaphoreCreateMutex();
 
   // Initialize I2C LCD
@@ -437,7 +485,7 @@ void setup() {
     0            // Core 0
   );
 
-  Serial.println("[Core 1] Real-Time UI Engine Ready.");
+  Serial.println("[Core 1] Real-Time UI Engine Ready. Buttons Armed & Listening!");
 }
 
 void loop() {
@@ -459,56 +507,46 @@ void loop() {
   }
 
   // -------------------------------------------------------------
-  // Switch 1: GET TOKEN (GPIO 25) - Active LOW Edge Detection
+  // Switch 1: GET TOKEN (GPIO 25) - Confirmed Press
   // -------------------------------------------------------------
-  int readingGetToken = digitalRead(PIN_BTN_GET_TOKEN);
-  if (readingGetToken == LOW && lastSwitchStateGetToken == HIGH) {
-    if (now - lastTriggerTimeGetToken > DEBOUNCE_COOLDOWN) {
-      lastTriggerTimeGetToken = now;
+  if (checkButtonPressed(&btnGetToken, now)) {
+    int issuedNumber = nextWalkInTokenNumber++;
+    Serial.printf("[BUTTON 1 - GPIO 25] Pressed! Generating Token #%d\n", issuedNumber);
 
-      soundBeepDouble();
-      String tokStr = "Token: " + String(nextWalkInTokenNumber);
-      setDisplayMessage("Walk-in Patient", tokStr, 3500);
+    soundBeepDouble();
+    String tokStr = "Token: " + String(issuedNumber);
+    setDisplayMessage("Walk-in Patient", tokStr, 3500);
 
-      EventType ev = EVENT_GET_TOKEN;
-      xQueueSend(xHardwareEventQueue, &ev, 0);
-    }
+    HardwareEvent ev = { EVENT_GET_TOKEN, issuedNumber };
+    xQueueSend(xHardwareEventQueue, &ev, 0);
   }
-  lastSwitchStateGetToken = readingGetToken;
 
   // -------------------------------------------------------------
-  // Switch 2: REPEAT CALL (GPIO 26) - Active LOW Edge Detection
+  // Switch 2: REPEAT CALL (GPIO 26) - Confirmed Press
   // -------------------------------------------------------------
-  int readingRepeat = digitalRead(PIN_BTN_REPEAT);
-  if (readingRepeat == LOW && lastSwitchStateRepeat == HIGH) {
-    if (now - lastTriggerTimeRepeat > DEBOUNCE_COOLDOWN) {
-      lastTriggerTimeRepeat = now;
+  if (checkButtonPressed(&btnRepeat, now)) {
+    Serial.println("[BUTTON 2 - GPIO 26] Pressed! Repeating Active Call...");
 
-      soundChimeAlert();
-      setDisplayMessage("CALL REPEATED!", "Voice Re-played", 2500);
+    soundChimeAlert();
+    String line1Msg = (currentServingToken.length() > 0) ? ("Serving: " + currentServingToken) : "Counter 1 Ready";
+    setDisplayMessage("CALL REPEATED!", line1Msg, 2500);
 
-      EventType ev = EVENT_REPEAT_CALL;
-      xQueueSend(xHardwareEventQueue, &ev, 0);
-    }
+    HardwareEvent ev = { EVENT_REPEAT_CALL, 0 };
+    xQueueSend(xHardwareEventQueue, &ev, 0);
   }
-  lastSwitchStateRepeat = readingRepeat;
 
   // -------------------------------------------------------------
-  // Switch 3: HELP (GPIO 27) - Active LOW Edge Detection
+  // Switch 3: HELP (GPIO 27) - Confirmed Press
   // -------------------------------------------------------------
-  int readingHelp = digitalRead(PIN_BTN_HELP);
-  if (readingHelp == LOW && lastSwitchStateHelp == HIGH) {
-    if (now - lastTriggerTimeHelp > DEBOUNCE_COOLDOWN) {
-      lastTriggerTimeHelp = now;
+  if (checkButtonPressed(&btnHelp, now)) {
+    Serial.println("[BUTTON 3 - GPIO 27] Pressed! URGENT HELP ALERT TRIGGERED!");
 
-      soundEmergencyAlert();
-      setDisplayMessage("! HELP CALLED !", "Staff Notified..", 3500);
+    soundEmergencyAlert();
+    setDisplayMessage("! HELP CALLED !", "Staff Notified..", 3500);
 
-      EventType ev = EVENT_HELP_ALERT;
-      xQueueSend(xHardwareEventQueue, &ev, 0);
-    }
+    HardwareEvent ev = { EVENT_HELP_ALERT, 0 };
+    xQueueSend(xHardwareEventQueue, &ev, 0);
   }
-  lastSwitchStateHelp = readingHelp;
 
   // -------------------------------------------------------------
   // Render LCD with Mutex Protection
@@ -519,5 +557,5 @@ void loop() {
   }
 
   // Small delay to yield Core 1
-  vTaskDelay(pdMS_TO_TICKS(20));
+  vTaskDelay(pdMS_TO_TICKS(10));
 }
