@@ -440,6 +440,65 @@
                         </div>
                     </div>
 
+                                        <!-- Advanced Queue Policy & Intelligent Dispatch Engine -->
+                    <div class="card card-policy" style="margin-top:1.25rem; border-left: 4px solid #38bdf8;">
+                        <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+                            <div>
+                                <h3 style="margin:0; font-size:1.05rem;">⚙️ Intelligent Queue Engine & Policy Controls</h3>
+                                <span class="sub-header-note">Real-world hospital triage rules & automated queue policies</span>
+                            </div>
+                            <span id="policyStatusBadge" class="badge" style="background:#0284c7; color:#f0f9ff; font-weight:700;">Priority-First Active</span>
+                        </div>
+                        <div class="card-body" style="padding:1rem;">
+                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
+                                <!-- Policy Rule Selector -->
+                                <div>
+                                    <label style="font-size:0.8rem; font-weight:700; color:#cbd5e1; display:block; margin-bottom:0.35rem;">
+                                        🏥 Triage Dispatch Algorithm:
+                                    </label>
+                                    <select id="selectQueuePolicy" class="form-select" onchange="changeQueuePolicy(this.value)" style="width:100%; font-size:0.85rem; padding:0.45rem; border-radius:6px; background:#0f172a; color:#f8fafc; border:1px solid #334155;">
+                                        <option value="priority_first" selected>⭐ Priority-First (Senior Citizen / Emergency First)</option>
+                                        <option value="fifo_strict">⏱️ Strict FIFO (First-Come, First-Served)</option>
+                                        <option value="emergency_only">🚨 Emergency Triage Only (Critical Cases First)</option>
+                                    </select>
+                                    <div style="font-size:0.72rem; color:#94a3b8; margin-top:0.3rem;" id="policyDescNote">
+                                        Priority patients jump to the front of the line automatically.
+                                    </div>
+                                </div>
+
+                                <!-- Dynamic EWT Velocity Control -->
+                                <div>
+                                    <label style="font-size:0.8rem; font-weight:700; color:#cbd5e1; display:block; margin-bottom:0.35rem;">
+                                        ⏱️ Average Consultation Time (EWT Pace):
+                                    </label>
+                                    <div style="display:flex; align-items:center; gap:8px;">
+                                        <input type="range" id="sliderAvgDuration" min="1.5" max="10" step="0.5" value="3.5" oninput="updateEwtDuration(this.value)" style="flex:1;">
+                                        <span id="lblAvgDuration" style="font-family:'JetBrains Mono'; font-weight:800; color:#38bdf8; font-size:0.9rem; min-width:55px;">3.5 min</span>
+                                    </div>
+                                    <div style="font-size:0.72rem; color:#10b981; margin-top:0.3rem;">
+                                        Real-time Dynamic EWT applied across all patient SMS/WhatsApp alerts.
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Fast Action Utility Bar -->
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:1rem; padding-top:0.75rem; border-top:1px solid #1e293b; flex-wrap:wrap; gap:8px;">
+                                <div style="display:flex; gap:6px; align-items:center;">
+                                    <span style="font-size:0.78rem; color:#94a3b8; font-weight:700;">Fast Tools:</span>
+                                    <button type="button" class="btn btn-xs" onclick="quickAddVipPatient()" style="background:#f59e0b22; border:1px solid #f59e0b; color:#fbbf24; font-weight:700; padding:0.25rem 0.6rem; border-radius:6px; cursor:pointer;">
+                                        + Quick Emergency Patient
+                                    </button>
+                                    <button type="button" class="btn btn-xs" onclick="batchSend5AheadAlerts()" style="background:#10b98122; border:1px solid #10b981; color:#34d399; font-weight:700; padding:0.25rem 0.6rem; border-radius:6px; cursor:pointer;">
+                                        📢 Re-broadcast 5-Ahead Alerts
+                                    </button>
+                                </div>
+                                <div style="font-size:0.75rem; color:#64748b; font-family:'JetBrains Mono';" id="queueHealthStatus">
+                                    Queue Health: Optimal (0 Overdue)
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Staff Assisted Token Creation Card -->
                     <div class="card card-assisted" style="margin-top:1.5rem;">
                         <div class="card-header">
@@ -1062,6 +1121,103 @@
         }
 
         // Render UI
+        
+        // =====================================================================
+        // ADVANCED ENTERPRISE QUEUE INTELLIGENCE & POLICY SYSTEM
+        // =====================================================================
+        let currentQueuePolicy = 'priority_first';
+        let consultationMinutesPerPatient = 3.5;
+
+        function changeQueuePolicy(policy) {
+            currentQueuePolicy = policy;
+            const badge = document.getElementById('policyStatusBadge');
+            const desc = document.getElementById('policyDescNote');
+
+            if (policy === 'priority_first') {
+                if (badge) { badge.textContent = 'Priority-First Active'; badge.style.background = '#0284c7'; }
+                if (desc) desc.textContent = 'Priority patients jump to the front of the line automatically.';
+                waitingList.sort((a,b) => (b.is_priority || 0) - (a.is_priority || 0) || (a.id || 0) - (b.id || 0));
+            } else if (policy === 'fifo_strict') {
+                if (badge) { badge.textContent = 'Strict FIFO Active'; badge.style.background = '#475569'; }
+                if (desc) desc.textContent = 'Standard sequential ordering strictly by arrival time / token ID.';
+                waitingList.sort((a,b) => (a.id || 0) - (b.id || 0));
+            } else if (policy === 'emergency_only') {
+                if (badge) { badge.textContent = 'Emergency Triage Mode'; badge.style.background = '#dc2626'; }
+                if (desc) desc.textContent = 'Emergency cases are called immediately, regular cases wait.';
+                waitingList.sort((a,b) => (b.is_priority || 0) - (a.is_priority || 0));
+            }
+
+            renderDashboard();
+            showToast(`⚙️ Queue Dispatch Policy updated: ${policy.toUpperCase()}`, '#38bdf8');
+        }
+
+        function updateEwtDuration(val) {
+            consultationMinutesPerPatient = parseFloat(val);
+            const lbl = document.getElementById('lblAvgDuration');
+            if (lbl) lbl.textContent = `${consultationMinutesPerPatient.toFixed(1)} min`;
+            renderDashboard();
+        }
+
+        async function toggleTokenPriority(tokenNo) {
+            const item = waitingList.find(x => String(x.token_no) === String(tokenNo));
+            if (!item) return;
+
+            item.is_priority = item.is_priority ? 0 : 1;
+            
+            // Re-apply current policy sorting
+            if (currentQueuePolicy === 'priority_first' || currentQueuePolicy === 'emergency_only') {
+                waitingList.sort((a,b) => (b.is_priority || 0) - (a.is_priority || 0) || (a.id || 0) - (b.id || 0));
+            }
+
+            renderDashboard();
+            showToast(`⭐ Token #${formatOnlyNumber(tokenNo)} priority changed to: ${item.is_priority ? 'PRIORITY' : 'NORMAL'}`, item.is_priority ? '#f59e0b' : '#94a3b8');
+
+            // Sync to Supabase in background
+            if (supabaseClient && item.id) {
+                supabaseClient.from('tokens').update({ is_priority: item.is_priority }).eq('id', item.id).then(() => {});
+            }
+        }
+
+        function quickAddVipPatient() {
+            const name = prompt("Enter Emergency / VIP Patient Name:", "Emergency Walk-in");
+            if (!name) return;
+
+            const phone = prompt("Enter Mobile Number (optional for WhatsApp alert):", "8367047947") || "8367047947";
+            simulateKioskPatient(name, phone, 'en', true);
+            showToast(`🚨 Priority Emergency Patient Added: ${name}`, '#ef4444');
+        }
+
+        async function batchSend5AheadAlerts() {
+            if (!supabaseClient || waitingList.length === 0) {
+                alert("No waiting patients to notify.");
+                return;
+            }
+
+            const batch = [];
+            for (let i = 0; i < Math.min(5, waitingList.length); i++) {
+                const w = waitingList[i];
+                if (!w.phone) continue;
+                const aheadNum = i + 1;
+                const estMins = Math.round(aheadNum * consultationMinutesPerPatient);
+                const wTrackUrl = `https://kandukurijagan1.github.io/pdsd/track.html?token=${formatOnlyNumber(w.token_no)}`;
+
+                batch.push({
+                    token_id: w.id || null,
+                    phone: w.phone,
+                    message_text: `📢 *SmartQ Clinic Alert*\nHello *${w.name}*, you have *${aheadNum}* ahead of you. Estimated wait: *~${estMins} mins*.\nTrack: ${wTrackUrl}`,
+                    channel: 'WHATSAPP',
+                    event_type: 'MANUAL_BROADCAST',
+                    status: 'PENDING',
+                    created_at: new Date().toISOString()
+                });
+            }
+
+            if (batch.length > 0) {
+                await supabaseClient.from('notification_outbox').insert(batch);
+                showToast(`✅ Dispatched 5-Ahead alerts to ${batch.length} patients via WhatsApp!`, '#10b981');
+            }
+        }
+
         function renderDashboard() {
             document.getElementById('statWaiting').textContent = waitingList.length;
             document.getElementById('statCompleted').textContent = completedCount;
@@ -1097,7 +1253,7 @@
 
             waitingList.forEach((w, idx) => {
                 const tr = document.createElement('tr');
-                const eta = Math.round((idx + 1) * 3.5);
+                const eta = Math.round((idx + 1) * consultationMinutesPerPatient);
                 tr.innerHTML = `
                     <td>${idx + 1}</td>
                     <td>
@@ -1106,8 +1262,12 @@
                     </td>
                     <td>${w.name}</td>
                     <td><span class="badge badge-lang">${w.lang.toUpperCase()}</span></td>
-                    <td>${w.is_priority ? '<span class="badge badge-priority">★ PRIORITY</span>' : '<span style="color:#64748b;">Normal</span>'}</td>
-                    <td><button class="btn btn-xs btn-outline" onclick="callSpecificToken('${w.token_no}')">📢 Call</button></td>
+                    <td>
+                        <button class="btn btn-xs" onclick="toggleTokenPriority('${w.token_no}')" title="Click to toggle Priority / Normal" style="background:${w.is_priority ? '#f59e0b' : '#1e293b'}; color:${w.is_priority ? '#000000' : '#94a3b8'}; font-weight:700; border:none; border-radius:4px; padding:0.2rem 0.5rem; cursor:pointer;">
+                            ${w.is_priority ? '★ PRIORITY' : 'Normal'}
+                        </button>
+                    </td>
+                    <td><button class="btn btn-xs btn-outline" onclick="callSpecificToken('${w.token_no}')" style="font-weight:700;">📢 Call</button></td>
                 `;
                 tbody.appendChild(tr);
             });
