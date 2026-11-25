@@ -971,19 +971,19 @@
         }
 
         // Global State & Realistic Demo Queue
-        let currentServing = { token_no: "A016", name: "Sunitha Murthy", lang: "en", phone: "9848022334" };
+        let currentServing = { token_no: "16", name: "Sunitha Murthy", lang: "en", phone: "9848022334" };
         let waitingList = [
-            { token_no: "A018", name: "Venkateswara Rao", lang: "te", phone: "9849099887", is_priority: 0 },
-            { token_no: "A019", name: "Swapna Priya", lang: "te", phone: "9849112233", is_priority: 0 },
-            { token_no: "A024", name: "Sridevi Kalyani", lang: "te", phone: "9848223344", is_priority: 1 },
-            { token_no: "A020", name: "K.K", lang: "en", phone: "918367047947", is_priority: 0 },
-            { token_no: "A021", name: "Selvamani Natarajan", lang: "ta", phone: "9849556677", is_priority: 0 },
-            { token_no: "A022", name: "Lakshmi Narayana", lang: "te", phone: "9848667788", is_priority: 0 },
-            { token_no: "A023", name: "Murugan Chelladurai", lang: "ta", phone: "9849778899", is_priority: 0 },
-            { token_no: "A025", name: "Kavitha Sundaram", lang: "ta", phone: "9848990011", is_priority: 0 },
-            { token_no: "A026", name: "Anitha Devi", lang: "te", phone: "9490123456", is_priority: 0 },
-            { token_no: "A027", name: "Kavitha Reddy", lang: "te", phone: "9849988776", is_priority: 0 },
-            { token_no: "A028", name: "Vijay Kumar", lang: "en", phone: "9701234567", is_priority: 0 }
+            { token_no: "18", name: "Venkateswara Rao", lang: "te", phone: "9849099887", is_priority: 0 },
+            { token_no: "19", name: "Swapna Priya", lang: "te", phone: "9849112233", is_priority: 0 },
+            { token_no: "24", name: "Sridevi Kalyani", lang: "te", phone: "9848223344", is_priority: 1 },
+            { token_no: "20", name: "K.K", lang: "en", phone: "918367047947", is_priority: 0 },
+            { token_no: "21", name: "Selvamani Natarajan", lang: "ta", phone: "9849556677", is_priority: 0 },
+            { token_no: "22", name: "Lakshmi Narayana", lang: "te", phone: "9848667788", is_priority: 0 },
+            { token_no: "23", name: "Murugan Chelladurai", lang: "ta", phone: "9849778899", is_priority: 0 },
+            { token_no: "25", name: "Kavitha Sundaram", lang: "ta", phone: "9848990011", is_priority: 0 },
+            { token_no: "26", name: "Anitha Devi", lang: "te", phone: "9490123456", is_priority: 0 },
+            { token_no: "27", name: "Kavitha Reddy", lang: "te", phone: "9849988776", is_priority: 0 },
+            { token_no: "28", name: "Vijay Kumar", lang: "en", phone: "9701234567", is_priority: 0 }
         ];
         let completedCount = 15;
         let skippedCount = 1;
@@ -1257,14 +1257,14 @@
 
                     // Dispatch WhatsApp Turn Alert to Called Patient
                     if (currentServing.phone) {
-                        const callTrackUrl = `https://kandukurijagan1.github.io/pdsd/track.html?token=${currentServing.token_no}`;
+                        const callTrackUrl = `https://kandukurijagan1.github.io/pdsd/track.html?token=${formatOnlyNumber(currentServing.token_no)}`;
                         let callMsg = "";
                         if (currentServing.lang === 'te') {
-                            callMsg = `📢 *SmartQ క్లినిక్ - మీ వంతు వచ్చింది!*\n------------------------------------\nనమస్కారం *${currentServing.name}* గారు,\nమీ టోకెన్ సంఖ్య: *#${currentServing.token_no}*.\n\nదయచేసి వెంటనే *కౌంటర్ 1* కు రండి!\nడాక్టర్/సిబ్బంది మీ కోసం వేచి ఉన్నారు.\n\n🔗 లైవ్ పాస్ & QR:\n${callTrackUrl}`;
+                            callMsg = `📢 *SmartQ క్లినిక్ - మీ వంతు వచ్చింది!*\n------------------------------------\nనమస్కారం *${currentServing.name}* గారు,\nమీ టోకెన్ సంఖ్య: *#${formatOnlyNumber(currentServing.token_no)}*.\n\nదయచేసి వెంటనే *కౌంటర్ 1* కు రండి!\nడాక్టర్/సిబ్బంది మీ కోసం వేచి ఉన్నారు.\n\n🔗 లైవ్ పాస్ & QR:\n${callTrackUrl}`;
                         } else if (currentServing.lang === 'ta') {
-                            callMsg = `📢 *SmartQ கிளினிக் - உங்கள் முறை வந்தது!*\n------------------------------------\nவணக்கம் *${currentServing.name}* அவர்களே,\nஉங்கள் டோக்கன் எண்: *#${currentServing.token_no}*.\n\nதயவுசெய்து உடனடியாக *கவுண்டர் 1*-க்கு வரவும்!\nமருத்துவர் உங்களுக்காக காத்திருக்கிறார்.\n\n🔗 நேரலை பாஸ் & QR:\n${callTrackUrl}`;
+                            callMsg = `📢 *SmartQ கிளினிக் - உங்கள் முறை வந்தது!*\n------------------------------------\nவணக்கம் *${currentServing.name}* அவர்களே,\nஉங்கள் டோக்கன் எண்: *#${formatOnlyNumber(currentServing.token_no)}*.\n\nதயவுசெய்து உடனடியாக *கவுண்டர் 1*-க்கு வரவும்!\nமருத்துவர் உங்களுக்காக காத்திருக்கிறார்.\n\n🔗 நேரலை பாஸ் & QR:\n${callTrackUrl}`;
                         } else {
-                            callMsg = `📢 *SmartQ Clinic - Your Turn Now!*\n------------------------------------\nHello *${currentServing.name}*,\nToken Number: *#${currentServing.token_no}*.\n\nPlease proceed immediately to *Counter 1*!\nOur doctor and staff are ready to attend to you.\n\n🔗 Live Mobile Pass & QR:\n${callTrackUrl}`;
+                            callMsg = `📢 *SmartQ Clinic - Your Turn Now!*\n------------------------------------\nHello *${currentServing.name}*,\nToken Number: *#${formatOnlyNumber(currentServing.token_no)}*.\n\nPlease proceed immediately to *Counter 1*!\nOur doctor and staff are ready to attend to you.\n\n🔗 Live Mobile Pass & QR:\n${callTrackUrl}`;
                         }
 
                         await supabaseClient.from('notification_outbox').insert({
@@ -1304,14 +1304,14 @@
                         const estMins = Math.round(aheadNum * 3.5);
                         if (!w.phone) continue;
 
-                        const wTrackUrl = `https://kandukurijagan1.github.io/pdsd/track.html?token=${w.token_no}`;
+                        const wTrackUrl = `https://kandukurijagan1.github.io/pdsd/track.html?token=${formatOnlyNumber(w.token_no)}`;
                         let aheadMsg = "";
                         if (w.lang === 'te') {
-                            aheadMsg = `⚠️ *SmartQ క్లినిక్ - క్యూ స్థానం అప్‌డేట్*\n----------------------------------------\nనమస్కారం *${w.name}* గారు,\nమీ టోకెన్ సంఖ్య: *#${w.token_no}*.\n\n🎟️ ప్రస్తుత స్థితి: మీ ముందు ఇంకా *${aheadNum}* మంది ఉన్నారు!\n⏱️ అంచనా సమయం: *~${estMins} నిమిషాలు*\n🏢 కౌంటర్ 1 లో ప్రస్తుత రోగి: *#${currentServing.token_no}*\n\nదయచేసి కౌంటర్ 1 ఎదుట వేచి ఉండే హాల్లో సిద్ధంగా ఉండండి. త్వరలో మీ టోకెన్ పిలవబడుతుంది!\n\n🔗 మీ లైవ్ టోకెన్ పాస్ & QR:\n${wTrackUrl}`;
+                            aheadMsg = `⚠️ *SmartQ క్లినిక్ - క్యూ స్థానం అప్‌డేట్*\n----------------------------------------\nనమస్కారం *${w.name}* గారు,\nమీ టోకెన్ సంఖ్య: *#${formatOnlyNumber(w.token_no)}*.\n\n🎟️ ప్రస్తుత స్థితి: మీ ముందు ఇంకా *${aheadNum}* మంది ఉన్నారు!\n⏱️ అంచనా సమయం: *~${estMins} నిమిషాలు*\n🏢 కౌంటర్ 1 లో ప్రస్తుత రోగి: *#${formatOnlyNumber(currentServing.token_no)}*\n\nదయచేసి కౌంటర్ 1 ఎదుట వేచి ఉండే హాల్లో సిద్ధంగా ఉండండి. త్వరలో మీ టోకెన్ పిలవబడుతుంది!\n\n🔗 మీ లైవ్ టోకెన్ పాస్ & QR:\n${wTrackUrl}`;
                         } else if (w.lang === 'ta') {
-                            aheadMsg = `⚠️ *SmartQ கிளினிக் - வரிசை அறிவிப்பு*\n----------------------------------------\nவணக்கம் *${w.name}* அவர்களே,\nஉங்கள் டோக்கன் எண்: *#${w.token_no}*.\n\n🎟️ நிலை: உங்களுக்கு முன் *${aheadNum}* நபர்கள் உள்ளனர்!\n⏱️ காத்திருப்பு நேரம்: *~${estMins} நிமிடங்கள்*\n🏢 கவுண்டர் 1ல் நடப்பது: *#${currentServing.token_no}*\n\nதயவுசெய்து கவுண்டர் 1 அருகில் காத்திருக்கவும். விரைவில் உங்கள் முறை வரும்!\n\n🔗 உங்கள் நேரலை பாஸ் & QR:\n${wTrackUrl}`;
+                            aheadMsg = `⚠️ *SmartQ கிளினிக் - வரிசை அறிவிப்பு*\n----------------------------------------\nவணக்கம் *${w.name}* அவர்களே,\nஉங்கள் டோக்கன் எண்: *#${formatOnlyNumber(w.token_no)}*.\n\n🎟️ நிலை: உங்களுக்கு முன் *${aheadNum}* நபர்கள் உள்ளனர்!\n⏱️ காத்திருப்பு நேரம்: *~${estMins} நிமிடங்கள்*\n🏢 கவுண்டர் 1ல் நடப்பது: *#${formatOnlyNumber(currentServing.token_no)}*\n\nதயவுசெய்து கவுண்டர் 1 அருகில் காத்திருக்கவும். விரைவில் உங்கள் முறை வரும்!\n\n🔗 உங்கள் நேரலை பாஸ் & QR:\n${wTrackUrl}`;
                         } else {
-                            aheadMsg = `⚠️ *SmartQ Clinic - Queue Ahead Alert*\n----------------------------------------\nHello *${w.name}*,\nYour Token Number is *#${w.token_no}*.\n\n🎟️ Queue Position: *${aheadNum} ${aheadNum === 1 ? 'Patient' : 'Patients'} Ahead of You*\n⏱️ Estimated Wait Time: *~${estMins} minutes*\n🏢 Currently Serving at Counter 1: *#${currentServing.token_no}*\n\nPlease be seated in the Counter 1 waiting hall. Your consultation will begin shortly!\n\n🔗 Live Queue Roadmap & QR Pass:\n${wTrackUrl}`;
+                            aheadMsg = `⚠️ *SmartQ Clinic - Queue Ahead Alert*\n----------------------------------------\nHello *${w.name}*,\nYour Token Number is *#${formatOnlyNumber(w.token_no)}*.\n\n🎟️ Queue Position: *${aheadNum} ${aheadNum === 1 ? 'Patient' : 'Patients'} Ahead of You*\n⏱️ Estimated Wait Time: *~${estMins} minutes*\n🏢 Currently Serving at Counter 1: *#${formatOnlyNumber(currentServing.token_no)}*\n\nPlease be seated in the Counter 1 waiting hall. Your consultation will begin shortly!\n\n🔗 Live Queue Roadmap & QR Pass:\n${wTrackUrl}`;
                         }
 
                         dispatchedOutbox.push({
@@ -1399,8 +1399,8 @@
                     }).eq('id', currentServing.id);
 
                     if (currentServing.phone) {
-                        const rxTrackUrl = `https://kandukurijagan1.github.io/pdsd/track.html?token=${currentServing.token_no}`;
-                        const rxMsg = `🏥 *SmartQ Clinic - Consultation Completed & Prescription Pass*\n----------------------------------------------------\nHello *${currentServing.name}*,\nToken Number: *#${currentServing.token_no}*.\n\nDoctor: *Dr. K. Sharma (Consultant Physician)*\nDiagnosis: *Seasonal Viral Pyrexia & Mild Pharyngitis*\nStatus: *COMPLETED*\n\n💊 Prescribed Medicines:\n• Paracetamol 650mg: 1-0-1 (3 Days)\n• Azithromycin 500mg: 1-0-0 (3 Days)\n• Cetirizine 10mg: 0-0-1 (5 Days)\n\n🔗 View & Download your Digital Prescription:\n${rxTrackUrl}`;
+                        const rxTrackUrl = `https://kandukurijagan1.github.io/pdsd/track.html?token=${formatOnlyNumber(currentServing.token_no)}`;
+                        const rxMsg = `🏥 *SmartQ Clinic - Consultation Completed & Prescription Pass*\n----------------------------------------------------\nHello *${currentServing.name}*,\nToken Number: *#${formatOnlyNumber(currentServing.token_no)}*.\n\nDoctor: *Dr. K. Sharma (Consultant Physician)*\nDiagnosis: *Seasonal Viral Pyrexia & Mild Pharyngitis*\nStatus: *COMPLETED*\n\n💊 Prescribed Medicines:\n• Paracetamol 650mg: 1-0-1 (3 Days)\n• Azithromycin 500mg: 1-0-0 (3 Days)\n• Cetirizine 10mg: 0-0-1 (5 Days)\n\n🔗 View & Download your Digital Prescription:\n${rxTrackUrl}`;
 
                         await supabaseClient.from('notification_outbox').insert({
                             token_id: currentServing.id,
