@@ -1180,126 +1180,105 @@
 
         // Actions
         async function callNextToken() {
-            // 1. If currently serving a token, mark it completed in Supabase
-            if (currentServing && currentServing.id && supabaseClient) {
-                try {
-                    await supabaseClient.from('tokens').update({
-                        status: 'COMPLETED',
-                        completed_at: new Date().toISOString()
-                    }).eq('id', currentServing.id);
-                    completedCount++;
-                } catch(e) {
-                    console.warn("Complete previous token note:", e);
+            // Validate waiting list
+            if (waitingList.length === 0) {
+                // Check if cloud has waiting tokens
+                if (supabaseClient) {
+                    try {
+                        const { data: topWaiting } = await supabaseClient
+                            .from('tokens')
+                            .select('id, token_no, status, is_priority, customers(name, phone, preferred_language)')
+                            .eq('status', 'WAITING')
+                            .order('is_priority', { ascending: false })
+                            .order('id', { ascending: true })
+                            .limit(1);
+
+                        if (topWaiting && topWaiting.length > 0) {
+                            const nextTok = topWaiting[0];
+                            waitingList.push({
+                                id: nextTok.id,
+                                token_no: nextTok.token_no,
+                                name: nextTok.customers ? nextTok.customers.name : 'Patient',
+                                lang: nextTok.customers ? nextTok.customers.preferred_language : 'en',
+                                phone: nextTok.customers ? nextTok.customers.phone : '',
+                                is_priority: nextTok.is_priority
+                            });
+                        }
+                    } catch(e) {}
                 }
-            } else if (currentServing) {
-                completedCount++;
             }
 
-            // 2. Fetch the top priority-first FIFO waiting token directly from Supabase
-            if (supabaseClient) {
-                try {
-                    const { data: topWaiting } = await supabaseClient
-                        .from('tokens')
-                        .select('id, token_no, status, is_priority, customers(name, phone, preferred_language)')
-                        .eq('status', 'WAITING')
-                        .order('is_priority', { ascending: false })
-                        .order('id', { ascending: true })
-                        .limit(1);
-
-                    if (topWaiting && topWaiting.length > 0) {
-                        const nextTok = topWaiting[0];
-                        currentServing = {
-                            id: nextTok.id,
-                            token_no: nextTok.token_no,
-                            name: nextTok.customers ? nextTok.customers.name : 'Patient',
-                            lang: nextTok.customers ? nextTok.customers.preferred_language : 'en',
-                            phone: nextTok.customers ? nextTok.customers.phone : '',
-                            is_priority: nextTok.is_priority
-                        };
-                    } else if (waitingList.length > 0) {
-                        waitingList.sort((a,b) => (b.is_priority || 0) - (a.is_priority || 0) || (a.id || 0) - (b.id || 0));
-                        currentServing = waitingList.shift();
-                    } else {
-                        alert("Queue is empty! All patients have been served.");
-                        return;
-                    }
-                } catch(e) {
-                    if (waitingList.length > 0) {
-                        waitingList.sort((a,b) => (b.is_priority || 0) - (a.is_priority || 0));
-                        currentServing = waitingList.shift();
-                    } else {
-                        alert("Queue is empty! All patients have been served.");
-                        return;
-                    }
-                }
-            } else {
-                if (waitingList.length === 0) {
-                    alert("Queue is empty! All patients have been served.");
-                    return;
-                }
-                waitingList.sort((a,b) => (b.is_priority || 0) - (a.is_priority || 0));
-                currentServing = waitingList.shift();
+            if (waitingList.length === 0) {
+                alert("Queue is empty! All patients have been served.");
+                return;
             }
 
-            // 3. Mark newly called token in Supabase Cloud
-            if (supabaseClient && currentServing.id) {
+            // --- ⚡ INSTANT OPTIMISTIC UI UPDATE (<10ms) ---
+            const prevServingId = currentServing ? currentServing.id : null;
+            if (currentServing) completedCount++;
+
+            // Sort priority-first, then shift next patient immediately
+            waitingList.sort((a,b) => (b.is_priority || 0) - (a.is_priority || 0) || (a.id || 0) - (b.id || 0));
+            const nextPatient = waitingList.shift();
+            currentServing = nextPatient;
+
+            // Trigger UI sound, voice announcement, and screen repaint instantly!
+            renderDashboard();
+            repeatCurrentCall();
+
+            // --- 🚀 ASYNCHRONOUS BACKGROUND CLOUD SYNC (Non-blocking) ---
+            (async () => {
+                if (!supabaseClient) return;
                 try {
-                    await supabaseClient.from('tokens').update({
-                        status: 'COMPLETED',
-                        completed_at: new Date().toISOString()
-                    }).eq('status', 'CALLED').eq('counter', 'Counter 1');
+                    // Complete previous token and call next in parallel!
+                    const updates = [];
+                    if (prevServingId) {
+                        updates.push(
+                            supabaseClient.from('tokens').update({
+                                status: 'COMPLETED',
+                                completed_at: new Date().toISOString()
+                            }).eq('id', prevServingId)
+                        );
+                    }
+                    if (nextPatient.id) {
+                        updates.push(
+                            supabaseClient.from('tokens').update({
+                                status: 'CALLED',
+                                called_at: new Date().toISOString(),
+                                counter: 'Counter 1'
+                            }).eq('id', nextPatient.id)
+                        );
+                    }
 
-                    await supabaseClient.from('tokens').update({
-                        status: 'CALLED',
-                        called_at: new Date().toISOString(),
-                        counter: 'Counter 1'
-                    }).eq('id', currentServing.id);
+                    await Promise.all(updates);
 
-                    // Dispatch WhatsApp Turn Alert to Called Patient
-                    if (currentServing.phone) {
-                        const callTrackUrl = `https://kandukurijagan1.github.io/pdsd/track.html?token=${formatOnlyNumber(currentServing.token_no)}`;
+                    // Proactive WhatsApp alerts dispatch in background
+                    if (nextPatient.phone) {
+                        const callTrackUrl = `https://kandukurijagan1.github.io/pdsd/track.html?token=${formatOnlyNumber(nextPatient.token_no)}`;
                         let callMsg = "";
-                        if (currentServing.lang === 'te') {
-                            callMsg = `📢 *SmartQ క్లినిక్ - మీ వంతు వచ్చింది!*\n------------------------------------\nనమస్కారం *${currentServing.name}* గారు,\nమీ టోకెన్ సంఖ్య: *#${formatOnlyNumber(currentServing.token_no)}*.\n\nదయచేసి వెంటనే *కౌంటర్ 1* కు రండి!\nడాక్టర్/సిబ్బంది మీ కోసం వేచి ఉన్నారు.\n\n🔗 లైవ్ పాస్ & QR:\n${callTrackUrl}`;
-                        } else if (currentServing.lang === 'ta') {
-                            callMsg = `📢 *SmartQ கிளினிக் - உங்கள் முறை வந்தது!*\n------------------------------------\nவணக்கம் *${currentServing.name}* அவர்களே,\nஉங்கள் டோக்கன் எண்: *#${formatOnlyNumber(currentServing.token_no)}*.\n\nதயவுசெய்து உடனடியாக *கவுண்டர் 1*-க்கு வரவும்!\nமருத்துவர் உங்களுக்காக காத்திருக்கிறார்.\n\n🔗 நேரலை பாஸ் & QR:\n${callTrackUrl}`;
+                        if (nextPatient.lang === 'te') {
+                            callMsg = `📢 *SmartQ క్లినిక్ - మీ వంతు వచ్చింది!*\n------------------------------------\nనమస్కారం *${nextPatient.name}* గారు,\nమీ టోకెన్ సంఖ్య: *#${formatOnlyNumber(nextPatient.token_no)}*.\n\nదయచేసి వెంటనే *కౌంటర్ 1* కు రండి!\nడాక్టర్/సిబ్బంది మీ కోసం వేచి ఉన్నారు.\n\n🔗 లైవ్ పాస్ & QR:\n${callTrackUrl}`;
+                        } else if (nextPatient.lang === 'ta') {
+                            callMsg = `📢 *SmartQ கிளினிக் - உங்கள் முறை வந்தது!*\n------------------------------------\nவணக்கம் *${nextPatient.name}* அவர்களே,\nஉங்கள் டோக்கன் எண்: *#${formatOnlyNumber(nextPatient.token_no)}*.\n\nதயவுசெய்து உடனடியாக *கவுண்டர் 1*-க்கு வரவும்!\nமருத்துவர் உங்களுக்காக காத்திருக்கிறார்.\n\n🔗 நேரலை பாஸ் & QR:\n${callTrackUrl}`;
                         } else {
-                            callMsg = `📢 *SmartQ Clinic - Your Turn Now!*\n------------------------------------\nHello *${currentServing.name}*,\nToken Number: *#${formatOnlyNumber(currentServing.token_no)}*.\n\nPlease proceed immediately to *Counter 1*!\nOur doctor and staff are ready to attend to you.\n\n🔗 Live Mobile Pass & QR:\n${callTrackUrl}`;
+                            callMsg = `📢 *SmartQ Clinic - Your Turn Now!*\n------------------------------------\nHello *${nextPatient.name}*,\nToken Number: *#${formatOnlyNumber(nextPatient.token_no)}*.\n\nPlease proceed immediately to *Counter 1*!\nOur doctor and staff are ready to attend to you.\n\n🔗 Live Mobile Pass & QR:\n${callTrackUrl}`;
                         }
 
-                        await supabaseClient.from('notification_outbox').insert({
-                            token_id: currentServing.id,
-                            phone: currentServing.phone,
+                        supabaseClient.from('notification_outbox').insert({
+                            token_id: nextPatient.id,
+                            phone: nextPatient.phone,
                             message_text: callMsg,
                             channel: 'WHATSAPP',
                             event_type: 'TOKEN_CALLED',
                             status: 'PENDING',
                             created_at: new Date().toISOString()
-                        });
+                        }).then(() => {});
                     }
 
-                    // 4. Automated 5-Consecutive Queue Ahead WhatsApp Broadcast!
-                    const { data: next5Rows } = await supabaseClient
-                        .from('tokens')
-                        .select('id, token_no, is_priority, customers(name, phone, preferred_language)')
-                        .eq('status', 'WAITING')
-                        .neq('id', currentServing.id)
-                        .order('is_priority', { ascending: false })
-                        .order('id', { ascending: true })
-                        .limit(5);
-
-                    const next5 = (next5Rows && next5Rows.length > 0) ? next5Rows.map(r => ({
-                        id: r.id,
-                        token_no: r.token_no,
-                        name: r.customers ? r.customers.name : 'Patient',
-                        lang: r.customers ? r.customers.preferred_language : 'en',
-                        phone: r.customers ? r.customers.phone : ''
-                    })) : waitingList.slice(0, 5);
-
-                    const dispatchedOutbox = [];
-
-                    for (let i = 0; i < next5.length; i++) {
-                        const w = next5[i];
+                    // Background 5-ahead broadcast
+                    const aheadBatch = [];
+                    for (let i = 0; i < Math.min(5, waitingList.length); i++) {
+                        const w = waitingList[i];
                         const aheadNum = i + 1;
                         const estMins = Math.round(aheadNum * 3.5);
                         if (!w.phone) continue;
@@ -1307,14 +1286,14 @@
                         const wTrackUrl = `https://kandukurijagan1.github.io/pdsd/track.html?token=${formatOnlyNumber(w.token_no)}`;
                         let aheadMsg = "";
                         if (w.lang === 'te') {
-                            aheadMsg = `⚠️ *SmartQ క్లినిక్ - క్యూ స్థానం అప్‌డేట్*\n----------------------------------------\nనమస్కారం *${w.name}* గారు,\nమీ టోకెన్ సంఖ్య: *#${formatOnlyNumber(w.token_no)}*.\n\n🎟️ ప్రస్తుత స్థితి: మీ ముందు ఇంకా *${aheadNum}* మంది ఉన్నారు!\n⏱️ అంచనా సమయం: *~${estMins} నిమిషాలు*\n🏢 కౌంటర్ 1 లో ప్రస్తుత రోగి: *#${formatOnlyNumber(currentServing.token_no)}*\n\nదయచేసి కౌంటర్ 1 ఎదుట వేచి ఉండే హాల్లో సిద్ధంగా ఉండండి. త్వరలో మీ టోకెన్ పిలవబడుతుంది!\n\n🔗 మీ లైవ్ టోకెన్ పాస్ & QR:\n${wTrackUrl}`;
+                            aheadMsg = `⚠️ *SmartQ క్లినిక్ - క్యూ స్థానం అప్‌డేట్*\n----------------------------------------\nనమస్కారం *${w.name}* గారు,\nమీ టోకెన్ సంఖ్య: *#${formatOnlyNumber(w.token_no)}*.\n\n🎟️ ప్రస్తుత స్థితి: మీ ముందు ఇంకా *${aheadNum}* మంది ఉన్నారు!\n⏱️ అంచనా సమయం: *~${estMins} నిమిషాలు*\n🏢 కౌంటర్ 1 లో ప్రస్తుత రోగి: *#${formatOnlyNumber(nextPatient.token_no)}*\n\nదయచేసి కౌంటర్ 1 ఎదుట వేచి ఉండే హాల్లో సిద్ధంగా ఉండండి. త్వరలో మీ టోకెన్ పిలవబడుతుంది!\n\n🔗 మీ లైవ్ టోకెన్ పాస్ & QR:\n${wTrackUrl}`;
                         } else if (w.lang === 'ta') {
-                            aheadMsg = `⚠️ *SmartQ கிளினிக் - வரிசை அறிவிப்பு*\n----------------------------------------\nவணக்கம் *${w.name}* அவர்களே,\nஉங்கள் டோக்கன் எண்: *#${formatOnlyNumber(w.token_no)}*.\n\n🎟️ நிலை: உங்களுக்கு முன் *${aheadNum}* நபர்கள் உள்ளனர்!\n⏱️ காத்திருப்பு நேரம்: *~${estMins} நிமிடங்கள்*\n🏢 கவுண்டர் 1ல் நடப்பது: *#${formatOnlyNumber(currentServing.token_no)}*\n\nதயவுசெய்து கவுண்டர் 1 அருகில் காத்திருக்கவும். விரைவில் உங்கள் முறை வரும்!\n\n🔗 உங்கள் நேரலை பாஸ் & QR:\n${wTrackUrl}`;
+                            aheadMsg = `⚠️ *SmartQ கிளினிக் - வரிசை அறிவிப்பு*\n----------------------------------------\nவணக்கம் *${w.name}* அவர்களே,\nஉங்கள் டோக்கன் எண்: *#${formatOnlyNumber(w.token_no)}*.\n\n🎟️ நிலை: உங்களுக்கு முன் *${aheadNum}* நபர்கள் உள்ளனர்!\n⏱️ காத்திருப்பு நேரம்: *~${estMins} நிமிடங்கள்*\n🏢 கவுண்டர் 1ல் நடப்பது: *#${formatOnlyNumber(nextPatient.token_no)}*\n\nதயவுசெய்து கவுண்டர் 1 அருகில் காத்திருக்கவும். விரைவில் உங்கள் முறை வரும்!\n\n🔗 உங்கள் நேரலை பாஸ் & QR:\n${wTrackUrl}`;
                         } else {
-                            aheadMsg = `⚠️ *SmartQ Clinic - Queue Ahead Alert*\n----------------------------------------\nHello *${w.name}*,\nYour Token Number is *#${formatOnlyNumber(w.token_no)}*.\n\n🎟️ Queue Position: *${aheadNum} ${aheadNum === 1 ? 'Patient' : 'Patients'} Ahead of You*\n⏱️ Estimated Wait Time: *~${estMins} minutes*\n🏢 Currently Serving at Counter 1: *#${formatOnlyNumber(currentServing.token_no)}*\n\nPlease be seated in the Counter 1 waiting hall. Your consultation will begin shortly!\n\n🔗 Live Queue Roadmap & QR Pass:\n${wTrackUrl}`;
+                            aheadMsg = `⚠️ *SmartQ Clinic - Queue Ahead Alert*\n----------------------------------------\nHello *${w.name}*,\nYour Token Number is *#${formatOnlyNumber(w.token_no)}*.\n\n🎟️ Queue Position: *${aheadNum} ${aheadNum === 1 ? 'Patient' : 'Patients'} Ahead of You*\n⏱️ Estimated Wait Time: *~${estMins} minutes*\n🏢 Currently Serving at Counter 1: *#${formatOnlyNumber(nextPatient.token_no)}*\n\nPlease be seated in the Counter 1 waiting hall. Your consultation will begin shortly!\n\n🔗 Live Queue Roadmap & QR Pass:\n${wTrackUrl}`;
                         }
 
-                        dispatchedOutbox.push({
+                        aheadBatch.push({
                             token_id: w.id || null,
                             phone: w.phone,
                             message_text: aheadMsg,
@@ -1325,19 +1304,14 @@
                         });
                     }
 
-                    if (dispatchedOutbox.length > 0) {
-                        await supabaseClient.from('notification_outbox').insert(dispatchedOutbox);
-                        console.log(`[SmartQ Cloud] Dispatched proactive WhatsApp position alerts to next ${dispatchedOutbox.length} patients!`);
+                    if (aheadBatch.length > 0) {
+                        supabaseClient.from('notification_outbox').insert(aheadBatch).then(() => {});
                     }
 
                 } catch(err) {
-                    console.error("Call next cloud sync note:", err);
+                    console.error("[Call Next Background Sync] Note:", err);
                 }
-            }
-
-            repeatCurrentCall();
-            renderDashboard();
-            loadQueueData(true);
+            })();
         }
 
         function repeatCurrentCall() {
