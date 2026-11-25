@@ -161,16 +161,16 @@ class WhatsAppWebEngine:
 
         try:
             self.playwright = sync_playwright().start()
-            print("[WhatsApp Web] Launching persistent browser context...")
+            print("[WhatsApp Web] Launching persistent browser context with Chrome...")
             self.browser_context = self.playwright.chromium.launch_persistent_context(
                 user_data_dir=self.profile_dir,
-                headless=True,
+                channel='chrome',
+                headless=False,
                 viewport={'width': 1280, 'height': 800},
                 args=[
                     '--no-sandbox',
                     '--disable-setuid-sandbox',
-                    '--disable-dev-shm-usage',
-                    '--disable-gpu'
+                    '--disable-dev-shm-usage'
                 ]
             )
             self.page = self.browser_context.pages[0] if self.browser_context.pages else self.browser_context.new_page()

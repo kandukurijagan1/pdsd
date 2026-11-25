@@ -40,8 +40,9 @@ def get_local_db():
 def send_whatsapp_via_local_microservice(phone, message):
     """
     Deliver WhatsApp message directly via:
-    1. Local microservice on port 3005 (if running)
-    2. Direct desktop deep-link / web fallback (wa.me / whatsapp://)
+    1. Local Playwright Chrome WhatsApp Web Engine (automated in background)
+    2. Local microservice on port 3005 (if active)
+    3. WhatsApp Protocol / wa.me universal fallback
     """
     digits = ''.join(filter(str.isdigit, str(phone)))
     if len(digits) == 12 and digits.startswith('91'):
@@ -50,7 +51,19 @@ def send_whatsapp_via_local_microservice(phone, message):
         return False, f"Invalid 10-digit phone number: {phone}"
 
     target_phone = f"91{digits}"
-    # 1. Try microservice on port 3005 first
+
+    # 1. Automated delivery via Playwright WhatsApp Web Engine
+    try:
+        from whatsapp_web_engine import whatsapp_web_engine
+        if not whatsapp_web_engine.running:
+            whatsapp_web_engine.start()
+        queued = whatsapp_web_engine.send_message(digits, message)
+        if queued:
+            return True, "Queued in WhatsApp Web Engine"
+    except Exception as ex:
+        print(f"[Bridge Engine Note] {ex}")
+
+    # 2. Try microservice on port 3005 if running
     try:
         res = requests.post(
             f"{LOCAL_GATEWAY_URL}/api/whatsapp/sendMessage",
@@ -64,7 +77,7 @@ def send_whatsapp_via_local_microservice(phone, message):
     except Exception:
         pass
 
-    # 2. Seamless Direct Dispatch via WhatsApp Universal Protocol / Desktop
+    # 3. Direct protocol fallback
     try:
         import subprocess
         import urllib.parse
